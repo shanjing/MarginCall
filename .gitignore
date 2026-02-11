@@ -1,0 +1,38 @@
+# Virtual Environment
+.agentic_venv/
+.venv/
+env/
+venv/
+
+# Python Bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Linter Cache
+.ruff_cache/
+
+# IDEs and OS
+.vscode/
+.idea/
+.DS_Store
+node_modules/
+
+# Editor swap / temp
+*.swp
+*.swo
+*~
+.tmp
+
+# Local Agent Artifacts (from your tree)
+*.db
+*.db-*
+*.log
+*.bin
+**/cache/
+.adk
+.env
+plan.md
+TODO.md
+

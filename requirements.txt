@@ -1,0 +1,29 @@
+# --- AI Core ---
+google-genai>=1.55.0
+google-cloud-aiplatform>=1.125.0
+litellm>=1.66.3
+
+# --- Framework ---
+google-adk[database]==1.21.0
+
+# --- Infrastructure ---
+pydantic==2.11.9
+pydantic-settings==2.10.1
+# Async Utilities
+asyncpg==0.31.0
+click>=8.1.8,<9.0.0
+greenlet>=3.3.1
+httpx==0.28.1
+nest_asyncio==1.6.0
+python-dotenv==1.1.1
+
+# --- Application ---
+yfinance>=1.1.0
+psutil==5.9.5
+narwhals>=2.15.0
+plotly>=6.5.2
+pandas>=3.0.0
+# pandas-ta 0.3.x no longer on PyPI; use maintained fork (same .ta API)
+pandas-ta-classic>=0.3.14
+# Plotly image export (PNG) for inline display in ADK UI
+kaleido>=0.2.1
