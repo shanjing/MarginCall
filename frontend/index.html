@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MarginCall</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>MarginCall</h1>
+      <span class="subtitle">DiamondHands Investment Group</span>
+    </header>
+
+    <main id="chat-container">
+      <div id="messages"></div>
+    </main>
+
+    <footer>
+      <form id="chat-form">
+        <input
+          type="text"
+          id="chat-input"
+          placeholder="Ask about any stock... e.g. &quot;tell me about AAPL&quot;"
+          autocomplete="off"
+        />
+        <button type="submit" id="send-btn">Send</button>
+      </form>
+    </footer>
+  </div>
+
+  <script src="report-renderer.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
