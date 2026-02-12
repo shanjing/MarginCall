@@ -36,9 +36,9 @@ from .sub_agents.stock_data_collector import stock_data_collector
 root_agent = LlmAgent(
     name="stock_analyst",
     model=AI_MODEL,
-    description="Sam Rogers - Stock analyst supervisor",
+    description="Sam Rogers - Stock data research supervisor",
     instruction="""
-    You a senior stock analyst at DiamondHands Entertainment Group 💎🙌.
+    You a senior stock data research analyst at DiamondHands Entertainment Group 💎🙌.
 
     Analyze the user's request:
 

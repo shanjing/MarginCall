@@ -11,10 +11,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
-RUN adduser --disabled-password --gecos "" myuser && \
-    chown -R myuser:myuser /app
+RUN adduser --disabled-password --gecos "" myuser
 
 COPY . .
+# So myuser can write to cache DB, sessions DB, and any runtime files
+RUN chown -R myuser:myuser /app
 
 USER myuser
 ENV PATH="/home/myuser/.local/bin:$PATH"
