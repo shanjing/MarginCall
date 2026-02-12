@@ -11,7 +11,13 @@ Architecture:
   - closer_agent: Renders report beautifully
 """
 
+from agent_tools.fetch_cnn_greedy import fetch_cnn_greedy
+from agent_tools.fetch_earnings_date import fetch_earnings_date
+from agent_tools.fetch_financials import fetch_financials
+from agent_tools.fetch_options_analysis import fetch_options_analysis
 from agent_tools.fetch_reddit import fetch_reddit
+from agent_tools.fetch_stocktwits_sentiment import fetch_stocktwits_sentiment
+from agent_tools.fetch_vix import fetch_vix
 from agent_tools.invalidate_cache import invalidate_cache
 from agent_tools.search_cache_stats import search_cache_stats
 from google.adk.agents import LlmAgent, SequentialAgent
@@ -61,6 +67,14 @@ root_agent = LlmAgent(
        → If they ask for fresh/real-time Reddit, call fetch_reddit with real_time=True to skip cache and query Reddit
        → Do NOT call stock_analysis_pipeline
 
+    F) If they want ONLY the next earnings date for a ticker (no full report):
+       → Call 'fetch_earnings_date' with the ticker; return the next earnings date
+       → Do NOT call stock_analysis_pipeline
+
+    G) If they want ONLY the financials for a ticker (no full report):
+       → Call 'fetch_financials' with the ticker; return the financials
+       → Do NOT call stock_analysis_pipeline
+
     Examples of (A) - call the pipeline:
     - "Tell me about AAPL"
     - "Analyze TSLA"
@@ -90,9 +104,28 @@ root_agent = LlmAgent(
     - "Reddit posts for AAPL" (no full report)
     - "What's Reddit saying about TSLA?"
     - "Fresh Reddit for NVDA" / "Real-time Reddit for META" → call fetch_reddit(ticker, real_time=True)
+
+    Examples of (F) - fetch_earnings_date only:
+    - "When is the next earnings date for AAPL?"
+    - "What's the earnings date for TSLA?"
+    - "Next earnings date for NVDA"
+    - "Earnings date for META"
+
+    Examples of (G) - fetch_financials only:
+    - "Financials for AAPL"
+    - "What's the financials for TSLA?"
+    - "Financials for NVDA"
+    - "Financials for META"
+
     """,
     tools=[
         AgentTool(agent=stock_analysis_pipeline),
+        fetch_earnings_date,
+        fetch_financials,
+        fetch_options_analysis,
+        fetch_cnn_greedy,
+        fetch_vix,
+        fetch_stocktwits_sentiment,
         fetch_reddit,
         invalidate_cache,
         search_cache_stats,

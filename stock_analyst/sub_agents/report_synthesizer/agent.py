@@ -32,7 +32,8 @@ report_synthesizer = LlmAgent(
             "stocktwits": <StockTwits: bullish, bearish, sentiment_ratio, signal>,
             "options_analysis": <options: put_call_ratio, max_pain, unusual_activity, implied_volatility>,
             "reddit": <reddit: posts (list of {subreddit, title, url}), by_subreddit>,
-            "news": <news articles>
+            "news": <news articles>,
+            "earnings_date": <earnings: next_earnings_date, days_until_earnings, is_estimated>
         }
     }
     Use session.state.stock_data.ticker for price, financials, technicals, cnn_fear_greed, vix, stocktwits, options_analysis, reddit, news.
@@ -193,6 +194,8 @@ report_synthesizer = LlmAgent(
     - news_summary: 1-2 sentences summarizing news
     - news_articles: copy ALL news articles (title, url, snippet, date)
     - reddit_posts: from session.state.stock_data.ticker.reddit — include ALL posts (top 3 most recent from each of r/wallstreetbets, r/stocks, r/redditstock). Each entry: subreddit, title, url, snippet (1-2 line excerpt of post body). If reddit data is missing or empty, use reddit_posts: [].
+    - next_earnings_date: from session.state.stock_data.ticker.earnings_date.next_earnings_date (YYYY-MM-DD or null)
+    - days_until_earnings: from session.state.stock_data.ticker.earnings_date.days_until_earnings (int or null)
     - rating.recommendation: "Buy", "Sell", or "Hold" (MUST use 80/20 rule!)
     - rating.confidence_percent: 0-100 (higher if indicators align)
     - rating.rationale: 1 sentence explaining the weighted decision

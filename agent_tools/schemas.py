@@ -221,6 +221,16 @@ class StockReport(BaseModel):
         description="Top Reddit posts about the stock (title, url, subreddit) from r/wallstreetbets, r/stocks, r/redditstock.",
     )
 
+    # Earnings date
+    next_earnings_date: str | None = Field(
+        default=None,
+        description="Next earnings date (YYYY-MM-DD). None if unavailable.",
+    )
+    days_until_earnings: int | None = Field(
+        default=None,
+        description="Days until next earnings. None if unavailable.",
+    )
+
     # Final verdict
     rating: StockRating = Field(..., description="The final rating recommendation.")
     conclusion: str = Field(

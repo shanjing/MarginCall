@@ -4,21 +4,32 @@ A stock analyst agent.
 
 **Requirements to run the agent**
 
-1. Must be in the virtual environment (`cd adk-lab; source .venv/bin/activate`)
+1. Must be in the virtual environment (see Initial Setup below)
 2. Must have a valid `GOOGLE_API_KEY` defined in the repo root `adk-lab/.env` file.  
    (To create your Google API key, go to [Google AI Studio](https://aistudio.google.com/api-keys).)
 
-The current WIP only supports Google Gemini models and local LLM models that support tools (e.g., Qwen).
+The agent is tested to work with gemini-2.5-flash, gemini-3-pro-preview.
+It uses ADK's google_search tool and auto switches to brave.com search via MCP for non-gemini models.
+
+
+**Initial setup**
+Create a virtual environment and install required packages
+```
+python -m venv .venv
+pip install -r reqiurements.txt
+```
 
 **To start the agent**
-
+1. Start ADK UI
 ```
 adk web
-# 1. Open browser to localhost:8000
-# 2. On the left side of the screen, select "stock_analyst"
-# 3. In the chat box, start talking to the agent
+# a. Open browser to localhost:8000
+# b. On the left side of the screen, select "stock_analyst"
+# c. In the chat box, start talking to the agent "give me a real-time research on AAPL"
+```
 
-# To run in CLI for debugging or text-based chat:
+2. To run in CLI for debugging or text-based chat:
+```
 python -m main run --help
 python -m main run -i "tell me about GOOGL"
 python -m main run -i "tell me about GOOGL" -d -t
@@ -80,4 +91,5 @@ Supervisor → AgentTool(sequential pipeline (data → report → present)):
     │ | brave_search│
     └───────────────┘
 ```
+
 
