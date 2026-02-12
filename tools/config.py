@@ -13,19 +13,23 @@ from google.adk.models.lite_llm import LiteLlm
 
 load_dotenv()
 
+
+def _env_strip(key: str, default: str = "") -> str:
+    """Get env var and strip surrounding whitespace and quotes (safe for Docker --env-file)."""
+    return os.getenv(key, default).strip().strip("'\"")
+
+
 # Never edit this file to change the model
 # Instead, change the CLOUD_AI_MODEL or LOCAL_AI_MODEL in the .env file
-CLOUD_MODEL = os.getenv("CLOUD_AI_MODEL")
-LOCAL_MODEL = os.getenv("LOCAL_AI_MODEL", "qwen3:32b")
+CLOUD_MODEL = _env_strip("CLOUD_AI_MODEL")
+LOCAL_MODEL = _env_strip("LOCAL_AI_MODEL") or "qwen3:32b"
 
 LOCAL_LLM = False
 
 # AL_MODEL_NAME is a string/label for the logger to identify the model
-# AI_MODEL:
-# 1)is the model object/wrapper for the agent,
-# 2)for local llm, it is the model object/wrapper for the agent
+# AI_MODEL: model object/wrapper for the agent (Gemini instance or LiteLlm)
 if CLOUD_MODEL:
-    # We are in Cloud Mode
+    # Cloud mode: plain string (e.g. gemini-2.5-flash); ADK registry resolves it.
     AI_MODEL = CLOUD_MODEL
     AI_MODEL_NAME = CLOUD_MODEL
 else:
@@ -49,7 +53,6 @@ REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "120"))  # pe
 RUNNER_TIMEOUT_SECONDS = int(os.getenv("RUNNER_TIMEOUT_SECONDS", "300"))  # full run; 0 = no limit
 
 # ADK specific required variables
-ROOT_AGENT = os.getenv("ROOT_AGENT", "SET_ROOT_AGENT_NAME_HERE")
-# Support comma- or space-separated list; strip quotes if present
-_SUB_AGENTS_RAW = os.getenv("SUB_AGENTS", "stock_analysis_pipeline,stock_data_collector,report_synthesizer,presenter,news_fetcher").strip().strip('"\'')
+ROOT_AGENT = _env_strip("ROOT_AGENT", "SET_ROOT_AGENT_NAME_HERE")
+_SUB_AGENTS_RAW = _env_strip("SUB_AGENTS", "stock_analysis_pipeline,stock_data_collector,report_synthesizer,presenter,news_fetcher")
 SUB_AGENTS = [s.strip() for s in re.split(r"[,\s]+", _SUB_AGENTS_RAW) if s.strip()]

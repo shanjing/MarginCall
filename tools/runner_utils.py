@@ -24,8 +24,11 @@ from .run_context import get_run_tool_registry, init_run_tool_registry
 load_dotenv(dotenv_path=Path(os.getcwd()) / ".env")
 
 # In project .env set AGENT_APP_NAME, USER_ID, AGENT_ENV
-# Derive DB naming from environment variables
-APP_NAME = os.getenv("AGENT_APP_NAME", "noname_app")
+# Strip quotes so values like "MarginCall" from Docker --env-file work as identifiers
+def _env_id(key: str, default: str) -> str:
+    return os.getenv(key, default).strip().strip("'\"")
+
+APP_NAME = _env_id("AGENT_APP_NAME", "noname_app")
 DB_PATH = Path(os.getcwd()) / f"{APP_NAME}_sessions.db"
 DB_URL = f"sqlite+aiosqlite:///{DB_PATH.resolve().as_posix()}"
 
@@ -68,7 +71,7 @@ async def execute_agent_stream(app, input_text, initial_state=None, debug=False)
 
     runner = Runner(app=app, session_service=session_service)
     session_id = str(uuid.uuid4())
-    user_id = os.getenv("USER_ID", "default_user")
+    user_id = _env_id("USER_ID", "default_user")
 
     await session_service.create_session(
         app_name=app.name,
