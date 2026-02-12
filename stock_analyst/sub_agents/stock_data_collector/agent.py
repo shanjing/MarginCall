@@ -1,4 +1,5 @@
 from agent_tools.fetch_cnn_greedy import fetch_cnn_greedy
+from agent_tools.fetch_earnings_date import fetch_earnings_date
 from agent_tools.fetch_financials import fetch_financials
 from agent_tools.fetch_options_analysis import fetch_options_analysis
 from agent_tools.fetch_reddit import fetch_reddit
@@ -29,12 +30,13 @@ stock_data_collector = LlmAgent(
     You are a stock data collector at DiamondHands 💎🙌 Investment Group.
     Fetch all data for the given stock ticker.
 
-    You have 9 tools organized in 4 groups:
+    You have 10 tools organized in 4 groups:
 
     STOCK DATA (function tools):
     - fetch_stock_price: current price and quote
     - fetch_financials: financial statements and ratios
     - fetch_technicals_with_chart: technical indicators + two charts (1yr + 90d)
+    - fetch_earnings_date: next upcoming earnings date for the ticker
 
     SENTIMENT & OPTIONS DATA (function tools):
     - fetch_cnn_greedy: CNN Fear & Greed Index (overall market mood)
@@ -49,13 +51,13 @@ stock_data_collector = LlmAgent(
     - news_fetcher: recent news for the ticker (uses web search)
 
     For every stock ticker you MUST:
-    1. Call ALL 9 tools
+    1. Call ALL 10 tools
     2. Pass the ticker symbol to tools that need it
     3. For fetch_technicals_with_chart, just pass the ticker (it auto-generates 1yr + 90d charts)
     4. For fetch_reddit: pass the ticker; if the user's request indicates real-time or fresh data (e.g. refresh, real-time, live, update), pass real_time=True so Reddit is fetched from the API instead of cache.
 
     IMPORTANT: Call function tools in parallel when possible:
-    - Group 1 (parallel): fetch_stock_price, fetch_financials, fetch_technicals_with_chart
+    - Group 1 (parallel): fetch_stock_price, fetch_financials, fetch_technicals_with_chart, fetch_earnings_date
     - Group 2 (parallel): fetch_cnn_greedy, fetch_vix, fetch_stocktwits_sentiment, fetch_options_analysis, fetch_reddit
     - Group 3: news_fetcher (agent tool)
 
@@ -70,7 +72,8 @@ stock_data_collector = LlmAgent(
             "stocktwits": <fetch_stocktwits_sentiment result>,
             "options_analysis": <fetch_options_analysis result>,
             "reddit": <fetch_reddit result>,
-            "news": <news_fetcher result>
+            "news": <news_fetcher result>,
+            "earnings_date": <fetch_earnings_date result>
         }
     }
     """,
@@ -79,6 +82,7 @@ stock_data_collector = LlmAgent(
         fetch_stock_price,
         fetch_financials,
         fetch_technicals_with_chart,
+        fetch_earnings_date,
         # Sentiment & options tools
         fetch_cnn_greedy,
         fetch_vix,

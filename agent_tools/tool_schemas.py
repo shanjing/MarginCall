@@ -322,6 +322,30 @@ class RedditPostsResult(BaseModel):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# fetch_earnings_date
+# ─────────────────────────────────────────────────────────────────────────────
+class EarningsDateResult(BaseModel):
+    """Return contract for fetch_earnings_date."""
+
+    status: str = Field(default="success")
+    ticker: str = Field(..., description="Stock ticker symbol.")
+    timestamp: str = Field(..., description="Timestamp of the fetch.")
+    next_earnings_date: str | None = Field(
+        default=None,
+        description="Next earnings date (YYYY-MM-DD). None if unavailable.",
+    )
+    is_estimated: bool = Field(
+        default=True,
+        description="Whether the earnings date is estimated or confirmed.",
+    )
+    days_until_earnings: int | None = Field(
+        default=None,
+        ge=0,
+        description="Days from today until next earnings. None if unavailable.",
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # search_cache_stats
 # ─────────────────────────────────────────────────────────────────────────────
 class CacheStatsResult(BaseModel):
