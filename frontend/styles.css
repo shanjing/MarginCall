@@ -19,7 +19,11 @@ html, body { height: 100%; }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: var(--bg);
+  background-color: var(--bg);
+  background-image: url("assets/wagmi-bg.png");
+  background-repeat: repeat;
+  background-size: 50% 50%;
+  background-position: 0 0;
   color: var(--text);
   line-height: 1.5;
 }
@@ -47,6 +51,34 @@ main {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+  position: relative;
+}
+
+/* Server log panel (shown while report is running) */
+.log-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 10px 16px;
+  background: rgba(15, 17, 23, 0.92);
+  border-top: 1px solid var(--border);
+  font-family: ui-monospace, "Cascadia Code", "SF Mono", Monaco, monospace;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: rgba(52, 211, 153, 0.45);
+  text-shadow: 0 0 1px rgba(52, 211, 153, 0.3);
+  pointer-events: none;
+}
+.log-panel[aria-hidden="true"] {
+  display: none;
+}
+.log-panel pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 footer {
@@ -143,14 +175,38 @@ footer {
   75%  { content: "..."; }
 }
 
-/* ── Stock Report Card ───────────────────────────────────────── */
+/* Loading indicator while waiting for report */
+.message-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+.message-loading .spinner {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Stock Report Card (transparent so bg image shows through) ── */
 .report-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(26, 29, 39, 0.32);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(46, 49, 68, 0.35);
   border-radius: 12px;
   overflow: hidden;
   margin-top: 8px;
   max-width: 100%;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
 }
 
 .report-header {
@@ -267,6 +323,42 @@ footer {
   padding-top: 4px;
 }
 
+/* Charts section — even grid, clean layout */
+.charts-section {
+  padding: 16px 20px;
+}
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin-top: 12px;
+}
+.chart-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface2);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.chart-item .chart-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  padding: 10px 12px 0;
+}
+.chart-item img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  min-height: 200px;
+  max-height: 320px;
+}
+
 /* News & Reddit lists */
 .article-list, .reddit-list { list-style: none; }
 .article-list li, .reddit-list li {
@@ -289,6 +381,12 @@ footer {
 .article-list .article-snippet, .reddit-list .post-snippet {
   font-size: 0.85rem;
   color: var(--text-dim);
+}
+.reddit-note {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin: 0;
   margin-top: 4px;
 }
 
@@ -323,11 +421,29 @@ footer {
   font-style: italic;
 }
 
+/* Movie quote */
+.report-quote .quote-block {
+  padding: 4px 0;
+}
+.report-quote .quote-line {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  font-style: italic;
+  margin-bottom: 6px;
+}
+.report-quote .quote-attribution {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
 /* ── Responsive ──────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .financials-grid,
   .sentiment-grid,
   .options-grid {
+    grid-template-columns: 1fr;
+  }
+  .charts-grid {
     grid-template-columns: 1fr;
   }
   .message { max-width: 95%; }

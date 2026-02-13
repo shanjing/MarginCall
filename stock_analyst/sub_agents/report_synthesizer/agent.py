@@ -15,7 +15,7 @@ report_synthesizer = LlmAgent(
     model=AI_MODEL,
     description="Senior analyst that synthesizes data into a report with weighted recommendations",
     instruction="""
-    You are a data analyst aka report synthesizer at DiamondHands 💎🙌 Investment Group.
+    You are a data analyst aka report synthesizer at DiamondHands 💎🙌 Group.
     All collected data is stored by stock_data_collector in session.state.stock_data.
     Read from session.state.stock_data and produce ONLY the structured JSON output
     matching the schema. No text before/after. No explanation.
@@ -179,11 +179,11 @@ report_synthesizer = LlmAgent(
     ═══════════════════════════════════════════════════════════════════════════
     FILL IN ALL SCHEMA FIELDS:
     ═══════════════════════════════════════════════════════════════════════════
-    - title: "Stock Analysis: [TICKER]"
+    - title: "Stock Ticker: [TICKER]"
     - ticker: the stock symbol
     - date: today's date (YYYY-MM-DD)
     - analyst: "Sam"
-    - firm: "DiamondHands 💎🙌 Investment Group"
+    - firm: "DiamondHands 💎🙌 Group"
     - company_intro: One paragraph (max 4 lines) from session.state.stock_data.ticker.financials: what the company does (use long_business_summary), its sector (e.g. Technology, Energy, Banking, Industrial), and market cap size (market_cap_category: Mega/Large/Mid/Small/Micro Cap). If financials missing, write a single line: "Company profile unavailable."
     - price_summary: 1-2 sentences on current price and movement
     - financials_summary: 1-2 sentences on key metrics
@@ -193,13 +193,15 @@ report_synthesizer = LlmAgent(
     - options_analysis: (all options fields — pcr, max pain, unusual, IV, HV, rank)
     - news_summary: 1-2 sentences summarizing news
     - news_articles: copy ALL news articles (title, url, snippet, date)
-    - reddit_posts: from session.state.stock_data.ticker.reddit — include ALL posts (top 3 most recent from each of r/wallstreetbets, r/stocks, r/redditstock). Each entry: subreddit, title, url, snippet (1-2 line excerpt of post body). If reddit data is missing or empty, use reddit_posts: [].
+    - reddit_posts: from session.state.stock_data.ticker.reddit.posts — only posts that mention the ticker (subreddit, title, url, snippet). If reddit is missing or reddit.posts is empty (or reddit.message is "Reddit isn't showing this much love."), use reddit_posts: [] and set reddit_note to "Reddit isn't showing this much love."
     - next_earnings_date: from session.state.stock_data.ticker.earnings_date.next_earnings_date (YYYY-MM-DD or null)
     - days_until_earnings: from session.state.stock_data.ticker.earnings_date.days_until_earnings (int or null)
     - rating.recommendation: "Buy", "Sell", or "Hold" (MUST use 80/20 rule!)
     - rating.confidence_percent: 0-100 (higher if indicators align)
     - rating.rationale: 1 sentence explaining the weighted decision
     - conclusion: 2-3 sentence investment thesis
+    - movie_quote_line: One short memorable quote (1-2 sentences) from a character in Margin Call, The Wolf of Wall Street, The Big Short, or House of Cards. Make it fit the report tone (bullish/bearish/neutral). Use null if you prefer not to include one.
+    - movie_quote_attribution: The character name and film in parentheses, e.g. "Sam Rogers (Margin Call)", "Jordan Belfort (Wolf of Wall Street)", "Mark Baum (The Big Short)", "Frank Underwood (House of Cards)". Must match the quote. Use null if movie_quote_line is null.
 
     Output ONLY the JSON. No markdown, no commentary, no explanations.
     """,

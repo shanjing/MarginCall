@@ -255,6 +255,10 @@ class ChartEntry(BaseModel):
 
     label: str = Field(..., description="Chart label, e.g. '1-Year Daily'.")
     result: str = Field(..., description="Chart generation status / artifact path.")
+    image_base64: str | None = Field(
+        default=None,
+        description="Base64-encoded PNG for inline display; None if unavailable.",
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -309,7 +313,7 @@ class RedditPostsResult(BaseModel):
     ticker: str = Field(..., description="Stock ticker queried.")
     posts: list[RedditPostEntry] = Field(
         default_factory=list,
-        description="All posts (top N per subreddit) with title and url.",
+        description="Posts that mention the ticker (title or body).",
     )
     by_subreddit: dict[str, list[RedditPostEntry]] = Field(
         default_factory=dict,
@@ -318,6 +322,10 @@ class RedditPostsResult(BaseModel):
     subreddits_queried: list[str] = Field(
         default_factory=list,
         description="Subreddits that were queried.",
+    )
+    message: str | None = Field(
+        default=None,
+        description="Set to 'Reddit isn't showing this much love.' when no ticker-related posts found.",
     )
 
 

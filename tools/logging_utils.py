@@ -1,5 +1,6 @@
 import logging
 import json
+import os
 import sys
 import time
 from typing import Any
@@ -19,9 +20,19 @@ THEME = {
 # Global Logger for this module
 logger = logging.getLogger(__name__)
 
+
+def get_log_level(debug: bool = False) -> int:
+    """Single source of truth for app log level. Used by setup_logging and server log stream.
+    Set LOG_LEVEL=DEBUG|INFO|WARNING|ERROR|CRITICAL to override; otherwise DEBUG if debug else INFO."""
+    level_str = os.getenv("LOG_LEVEL", "").strip().upper()
+    if level_str in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
+        return getattr(logging, level_str)
+    return logging.DEBUG if debug else logging.INFO
+
+
 def setup_logging(debug: bool = False, model_name: str = "unknown"):
     """ADK logging configuration with version and model tracking."""
-    log_level = logging.DEBUG if debug else logging.INFO
+    log_level = get_log_level(debug)
     
     # base station for all logging
     logging.basicConfig(

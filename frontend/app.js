@@ -11,6 +11,8 @@ const messagesEl = document.getElementById("messages");
 const chatForm   = document.getElementById("chat-form");
 const chatInput  = document.getElementById("chat-input");
 const sendBtn    = document.getElementById("send-btn");
+const logPanel   = document.getElementById("log-panel");
+const logContent = document.getElementById("log-content");
 
 /* ── Helpers ─────────────────────────────────────────────────── */
 
@@ -91,11 +93,51 @@ async function sendMessage(text) {
   isStreaming = true;
   setInputEnabled(false);
 
+  let logAbort = null;
+  if (logPanel && logContent) {
+    logPanel.setAttribute("aria-hidden", "false");
+    logContent.textContent = "";
+    logAbort = new AbortController();
+    (function streamLogs() {
+      fetch("/api/log_stream", { signal: logAbort.signal })
+        .then(function (r) {
+          if (!r.ok || !r.body) return;
+          var reader = r.body.getReader();
+          var decoder = new TextDecoder();
+          var buf = "";
+          function processChunk(result) {
+            if (result.done) return;
+            buf += decoder.decode(result.value, { stream: true });
+            var lines = buf.split("\n");
+            buf = lines.pop() || "";
+            for (var i = 0; i < lines.length; i++) {
+              var line = lines[i];
+              if (!line.startsWith("data: ")) continue;
+              var raw = line.slice(6).trim();
+              if (!raw) continue;
+              try {
+                var data = JSON.parse(raw);
+                if (data.log && logContent) {
+                  logContent.textContent += data.log + "\n";
+                  logPanel.scrollTop = logPanel.scrollHeight;
+                }
+              } catch (_) { /* ignore */ }
+            }
+            return reader.read().then(processChunk);
+          }
+          return reader.read().then(processChunk);
+        })
+        .catch(function () { /* aborted or closed */ });
+    })();
+  }
+
   // User bubble
   addMessage("user", text);
 
-  // Agent bubble (will be filled by streaming)
+  // Agent bubble (will be filled by streaming); show loading until first content
   const agentContent = addMessage("agent", "");
+  agentContent.innerHTML =
+    '<span class="message-loading"><span class="spinner"></span>Working on your report…</span>';
 
   // Track accumulated text
   let fullText = "";
@@ -148,7 +190,6 @@ async function sendMessage(text) {
         let event;
         try { event = JSON.parse(json); } catch (_) { continue; }
 
-        // Extract text from content.parts
         if (event.content && event.content.parts) {
           for (const part of event.content.parts) {
             if (part.text) {
@@ -164,16 +205,43 @@ async function sendMessage(text) {
   } catch (err) {
     addSystemMessage("Connection error: " + err.message);
   } finally {
+    if (logAbort) logAbort.abort();
+    if (logPanel) logPanel.setAttribute("aria-hidden", "true");
     isStreaming = false;
     setInputEnabled(true);
     chatInput.focus();
   }
 
-  // After streaming completes, check for stock_report in session state
+  // After streaming completes, check for stock_report in session state and attach chart images
   try {
     const state = await getSessionState();
     const report = state ? state.stock_report : null;
     if (report && JSON.stringify(report) !== JSON.stringify(reportBefore)) {
+      // Charts: fetch from /api/charts (tool responses not streamed when pipeline runs as sub-agent)
+      let chartImages = {};
+      const ticker = report.ticker;
+      if (ticker) {
+        try {
+          const chartsRes = await fetch(`/api/charts?ticker=${encodeURIComponent(ticker)}`);
+          if (chartsRes.ok) {
+            const data = await chartsRes.json();
+            const charts = data?.charts || {};
+            const order = ["1y", "3mo"];
+            for (const key of order) {
+              const entry = charts[key];
+              if (entry && entry.image_base64) {
+                chartImages[key] = {
+                  label: entry.label || (key === "1y" ? "1-Year Daily" : "90-Day Daily"),
+                  src: "data:image/png;base64," + entry.image_base64,
+                };
+              }
+            }
+          }
+        } catch (_) { /* ignore */ }
+      }
+      report.chart_images = Object.keys(chartImages).length ? chartImages : undefined;
+      // Show only the report card: replace streamed text so the same content is not shown twice
+      agentContent.innerHTML = DOMPurify.sanitize(marked.parse("Here’s your report below."));
       const card = renderStockReport(report);
       messagesEl.appendChild(card);
       scrollToBottom();
@@ -196,7 +264,8 @@ chatForm.addEventListener("submit", (e) => {
 (async function init() {
   try {
     await createSession();
-    addSystemMessage("Session started. Ask me about any stock.");
+    addSystemMessage("Ask me about any stock, market sentiments, market news, earnings date, etc.");
+    addSystemMessage("This is generated by AI, for entertainment only, not an investment advice. Do your own research.");
     chatInput.focus();
   } catch (err) {
     addSystemMessage("Failed to connect: " + err.message);

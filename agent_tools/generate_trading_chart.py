@@ -1,8 +1,14 @@
-"""Generate TradingView-style interactive chart (OHLC, volume, RSI, MACD, SMAs) for a stock."""
+"""Generate TradingView-style interactive chart (OHLC, volume, RSI, MACD, SMAs) for a stock.
+
+Charts are drawn locally (Plotly + yfinance). When tool_context is present,
+charts are saved to ADK artifacts (for ADK web UI). Always returns status-only
+(no image_base64) so the LLM context stays small; fetch_technicals_with_chart
+loads from artifact for cache when needed.
+"""
 
 from __future__ import annotations
 
-import os
+import base64
 from pathlib import Path
 
 import pandas as pd
@@ -41,21 +47,21 @@ async def generate_trading_chart(
     ticker: str,
     timeframe: str = "1y",
     tool_context: ToolContext | None = None,
-) -> str:
+) -> dict:
     """
     Fetch chart data for a stock and generate a TradingView-style interactive Plotly chart.
 
-    Produces candlesticks, volume, SMAs (50, 200), RSI, and MACD. Saves the chart as an
-    HTML artifact when run via ADK (tool_context provided).
+    Produces candlesticks, volume, SMAs (50, 200), RSI, and MACD.
+    When tool_context is present: saves HTML+PNG to ADK artifacts (ADK web UI can display).
+    Always returns status-only (no image_base64) to keep LLM context small.
 
     Args:
         ticker: Stock symbol (e.g. 'AAPL').
         timeframe: Period of data (e.g. '3mo', '1y', '2y'). Used as yfinance 'period'.
-        All charts use daily bars (interval='1d').
-        tool_context: ADK ToolContext; when provided, saves the chart as an artifact.
+        tool_context: ADK ToolContext; when provided, saves charts to ADK artifacts.
 
     Returns:
-        Status message including artifact filename when saved.
+        Dict with "status" (str) only. No image_base64—caller loads from artifact for cache.
     """
     logger.info(
         "--- Tool: generate_trading_chart called for %s, period=%s ---",
@@ -64,10 +70,10 @@ async def generate_trading_chart(
     )
 
     if ta is None:
-        return (
-            "Chart generation requires pandas_ta. "
-            "Install with: pip install pandas-ta-classic"
-        )
+        return {
+            "status": "Chart generation requires pandas_ta. Install with: pip install pandas-ta-classic",
+            "image_base64": None,
+        }
 
     try:
         stock = yf.Ticker(ticker)
@@ -76,10 +82,10 @@ async def generate_trading_chart(
         hist = _flatten_columns(hist)
 
         if hist is None or hist.empty or len(hist) < 20:
-            return (
-                f"Insufficient history for {ticker} (need at least 20 trading days). "
-                f"Try a longer timeframe (e.g. '3mo', '1y')."
-            )
+            return {
+                "status": f"Insufficient history for {ticker} (need at least 20 trading days). Try a longer timeframe (e.g. '3mo', '1y').",
+                "image_base64": None,
+            }
 
         df = hist[["Open", "High", "Low", "Close", "Volume"]].copy()
         df.columns = [c.lower() for c in df.columns]
@@ -110,10 +116,10 @@ async def generate_trading_chart(
         plot_df = df.dropna(subset=[rsi_col]).copy()
 
         if plot_df.empty:
-            return (
-                f"Not enough data to compute indicators for {ticker}. "
-                f"Use a longer timeframe (e.g. '1y' or '2y')."
-            )
+            return {
+                "status": f"Not enough data to compute indicators for {ticker}. Use a longer timeframe (e.g. '1y' or '2y').",
+                "image_base64": None,
+            }
 
         # TradingView-style layout: Price (+ SMAs) | Volume | RSI | MACD
         fig = make_subplots(
@@ -277,71 +283,73 @@ async def generate_trading_chart(
         png_filename = f"{ticker}_chart_{timeframe}.png"
         chart_html = fig.to_html(include_plotlyjs="cdn", full_html=True)
 
-        # Disk fallback dir: only used when artifact service is unavailable (e.g. CLI).
-        # When running in UI, ADK stores artifacts via save_artifact() in its artifact area.
         _margin_call_dir = Path(__file__).resolve().parent.parent
         _chart_dir = _margin_call_dir / ".tmp"
         _chart_dir.mkdir(parents=True, exist_ok=True)
 
-        # if tool_context is provided, save the chart as an artifact
+        # When tool_context present: save to ADK artifacts (ADK web UI displays them)
         if (
             tool_context is not None
-            and getattr(tool_context, "save_artifact", None)
+            and ToolContext is not None
             and types is not None
+            and getattr(tool_context, "save_artifact", None)
         ):
-            logger.info("Saving chart as artifact: %s", html_filename)
-            # .save_artifact is a function provided by the tool_context
-            save_artifact = tool_context.save_artifact
-            # ADK expects (filename, Part) with Part.inline_data = Blob(mime_type, data=bytes)
-            html_part = types.Part(
-                inline_data=types.Blob(
-                    mime_type="text/html", data=chart_html.encode("utf-8")
-                ),
-            )
+            logger.info("Saving chart to ADK artifacts: %s, %s", html_filename, png_filename)
             try:
-                await save_artifact(html_filename, html_part)
+                html_part = types.Part(
+                    inline_data=types.Blob(
+                        mime_type="text/html", data=chart_html.encode("utf-8")
+                    ),
+                )
+                await tool_context.save_artifact(html_filename, html_part)
             except ValueError as e:
                 if "Artifact service is not initialized" in str(e):
                     html_path = _chart_dir / html_filename
                     html_path.write_text(chart_html, encoding="utf-8")
-                    logger.info(
-                        "Artifact service isn't running (likely running from CLI); "
-                        "chart HTML is stored at %s",
-                        html_path.resolve(),
-                    )
-                    return (
-                        f"TradingView-style chart saved to **{html_filename}** in .tmp. "
-                        f"Full path: {html_path.resolve()}"
-                    )
-                raise
+                    logger.info("Artifact service unavailable; saved to .tmp: %s", html_path)
+                else:
+                    raise
 
-            # Save PNG for inline display in ADK UI
             try:
                 png_bytes = fig.to_image(format="png", width=1200, height=900, scale=2)
                 png_part = types.Part(
                     inline_data=types.Blob(mime_type="image/png", data=png_bytes),
                 )
-                await save_artifact(png_filename, png_part)
-                return (
-                    f"TradingView-style chart generated for {ticker}.\n"
-                    f"- **Inline image**: {png_filename}\n"
-                    f"- **Interactive chart**: {html_filename} (in Artifacts panel)"
-                )
+                await tool_context.save_artifact(png_filename, png_part)
+                # Return status-only; fetch_technicals loads artifact for cache
+                return {
+                    "status": (
+                        f"Chart generated for {ticker}. "
+                        f"Inline: {png_filename}; Interactive: {html_filename} (Artifacts panel)"
+                    ),
+                }
             except Exception as img_err:
-                logger.warning("Could not generate PNG (install kaleido): %s", img_err)
-                return (
-                    f"TradingView-style chart generated. View artifact: **{html_filename}**\n"
-                    f"(PNG export failed - install `kaleido` for inline images)"
-                )
+                logger.warning("PNG export failed (install kaleido): %s", img_err)
+                return {
+                    "status": (
+                        f"Chart saved as **{html_filename}** (PNG failed). "
+                        "View in Artifacts panel."
+                    ),
+                }
 
-        # Fallback: write to .tmp when not run via ADK (no tool_context / CLI)
+        # Fallback: no ADK context (e.g. CLI)—save to .tmp and return base64 for cache
         html_path = _chart_dir / html_filename
         html_path.write_text(chart_html, encoding="utf-8")
-        return (
-            f"TradingView-style chart saved to **{html_filename}** in .tmp. "
-            f"Full path: {html_path.resolve()}"
-        )
+        logger.info("Chart saved to .tmp: %s", html_path.resolve())
+
+        try:
+            png_bytes = fig.to_image(format="png", width=1200, height=900, scale=2)
+            image_b64 = base64.b64encode(png_bytes).decode("ascii")
+            return {
+                "status": f"Chart saved to {html_filename} in .tmp. PNG via /api/charts",
+                "image_base64": image_b64,
+            }
+        except Exception as img_err:
+            logger.warning("Could not generate PNG (install kaleido): %s", img_err)
+            return {
+                "status": f"Chart saved to **{html_filename}** in .tmp (PNG failed)",
+            }
 
     except Exception as e:
         logger.exception("Error generating chart for %s", ticker)
-        return f"Error generating chart for {ticker}: {e!s}"
+        return {"status": f"Error generating chart for {ticker}: {e!s}", "image_base64": None}
