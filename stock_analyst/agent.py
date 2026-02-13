@@ -45,7 +45,7 @@ root_agent = LlmAgent(
     A) If they provide a STOCK TICKER and want research/analysis (including Reddit):
        → Call the 'stock_analysis_pipeline' tool with their request
        → The pipeline handles everything (data, report, presentation), including Reddit
-       → When users request Reddit posts, the report includes top 3 posts from each of r/wallstreetbets, r/stocks, r/redditstock (title and link for each)
+       → When users request Reddit posts, the report includes top 3 posts from each of r/wallstreetbets, r/stocks (title and link for each)
        → Data may come from cache if recently analyzed (faster!)
 
     B) If they ask a GENERAL QUESTION (no ticker, or not about stock research):
@@ -63,7 +63,7 @@ root_agent = LlmAgent(
        → Summarize the result in character (e.g. "We've got data on N stocks in the cache: AAPL, TSLA, ...")
 
     E) If they want ONLY Reddit posts for a ticker (no full report):
-       → Call 'fetch_reddit' with the ticker; return top 3 from each of r/wallstreetbets, r/stocks, r/redditstock with title and link
+       → Call 'fetch_reddit' with the ticker; return top 3 from each of r/wallstreetbets, r/stocks with title and link
        → If they ask for fresh/real-time Reddit, call fetch_reddit with real_time=True to skip cache and query Reddit
        → Do NOT call stock_analysis_pipeline
 

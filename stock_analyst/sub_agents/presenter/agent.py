@@ -82,7 +82,7 @@ presenter = LlmAgent(
       [snippet]
       🔗 [url]
 
-    📱 REDDIT (r/wallstreetbets, r/stocks, r/redditstock)
+    📱 REDDIT (r/wallstreetbets, r/stocks)
     For each post in reddit_posts: show title, link, and 1-2 line excerpt:
     • [subreddit] [title]
       [snippet]

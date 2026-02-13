@@ -1,5 +1,5 @@
 """
-Reddit posts about a stock from r/wallstreetbets, r/stocks, r/redditstock.
+Reddit posts about a stock from r/wallstreetbets, r/stocks.
 
 - Uses Reddit's public JSON API (no OAuth). Requires a descriptive User-Agent.
 - Results are stored in the existing cache database (same as price, financials, etc.)
@@ -16,7 +16,7 @@ from .tool_schemas import RedditPostsResult
 
 # Reddit requires a descriptive User-Agent for API requests
 USER_AGENT = "MarginCallAgent/1.0 (stock research; DiamondHands)"
-DEFAULT_SUBREDDITS = ["wallstreetbets", "stocks", "redditstock"]
+DEFAULT_SUBREDDITS = ["wallstreetbets", "stocks"]
 POSTS_PER_SUB = 3
 # Snippet: max chars for 1-2 line excerpt of post body
 SNIPPET_MAX_CHARS = 220
@@ -55,7 +55,7 @@ def fetch_reddit(
 
     Args:
         ticker: Stock symbol (e.g. "AAPL", "TSLA").
-        subreddits: Subreddit names without "r/" (default: wallstreetbets, stocks, redditstock).
+        subreddits: Subreddit names without "r/" (default: wallstreetbets, stocks).
         limit_per_sub: Max posts per subreddit (default 3).
         real_time: If True, skip cache and fetch from Reddit (for user-requested fresh data).
 

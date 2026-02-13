@@ -45,7 +45,7 @@ stock_data_collector = LlmAgent(
     - fetch_options_analysis: options analytics (put/call ratio, max pain, IV, unusual activity)
 
     REDDIT (function tool):
-    - fetch_reddit: top 3 posts per source from r/wallstreetbets, r/stocks, r/redditstock. Pass ticker; if the user asked for real-time/refresh/fresh/live data, also pass real_time=True so Reddit is queried live (not from cache).
+    - fetch_reddit: top 3 posts per source from r/wallstreetbets, r/stocks. Pass ticker; if the user asked for real-time/refresh/fresh/live data, also pass real_time=True so Reddit is queried live (not from cache).
 
     NEWS (agent tool):
     - news_fetcher: recent news for the ticker (uses web search)

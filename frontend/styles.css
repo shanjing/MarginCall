@@ -54,13 +54,13 @@ main {
   position: relative;
 }
 
-/* ── Log Panel (permanent, above the chat input) ─────────────── */
+/* ── Log Panel (permanent, above the chat input, collapsible) ── */
 .log-panel {
   position: fixed;
   bottom: 70px;          /* sits just above the footer / chat form */
   left: 16px;
   width: 360px;
-  height: 400px;
+  height: 265px;
   z-index: 900;
   display: flex;
   flex-direction: column;
@@ -73,9 +73,17 @@ main {
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(52, 211, 153, 0.05);
   font-family: "SF Mono", "Cascadia Code", "Fira Code", ui-monospace, monospace;
   pointer-events: auto;
+  transition: height 0.25s ease;
+}
+/* Collapsed: only header bar visible */
+.log-panel.collapsed {
+  height: 28px;
+}
+.log-panel.collapsed .log-panel-body {
+  display: none;
 }
 
-/* Header bar */
+/* Header bar (clickable toggle) */
 .log-panel-header {
   display: flex;
   align-items: center;
@@ -89,6 +97,25 @@ main {
   border-bottom: 1px solid rgba(52, 211, 153, 0.1);
   background: rgba(52, 211, 153, 0.03);
   flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+}
+.log-panel-header:hover {
+  background: rgba(52, 211, 153, 0.06);
+}
+
+/* Chevron indicator */
+.log-chevron {
+  margin-left: auto;
+  display: inline-block;
+  font-size: 10px;
+  transition: transform 0.25s ease;
+}
+.log-chevron::after {
+  content: "\25B2";  /* ▲ */
+}
+.log-panel.collapsed .log-chevron {
+  transform: rotate(180deg);
 }
 .log-pulse {
   display: inline-block;
@@ -515,6 +542,6 @@ footer {
     width: calc(100vw - 16px);
     left: 8px;
     bottom: 64px;
-    height: 300px;
+    height: 200px;
   }
 }
