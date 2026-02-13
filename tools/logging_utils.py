@@ -33,7 +33,12 @@ def get_log_level(debug: bool = False) -> int:
 def setup_logging(debug: bool = False, model_name: str = "unknown"):
     """ADK logging configuration with version and model tracking."""
     log_level = get_log_level(debug)
-    
+
+    # Preserve any LogStreamHandler (added by server.py for SSE log streaming)
+    # before basicConfig(force=True) wipes the root handler list.
+    root = logging.getLogger()
+    _saved_handlers = [h for h in root.handlers if type(h).__name__ == "LogStreamHandler"]
+
     # base station for all logging
     logging.basicConfig(
         level=log_level,
@@ -41,6 +46,11 @@ def setup_logging(debug: bool = False, model_name: str = "unknown"):
         stream=sys.stdout,
         force=True,
     )
+
+    # Re-attach preserved handlers
+    for h in _saved_handlers:
+        if h not in root.handlers:
+            root.addHandler(h)
 
     adk_ver = getattr(google.adk, "__version__", "unknown")
     litellm_ver = getattr(litellm, "__version__", "unknown")
