@@ -27,7 +27,7 @@ stock_data_collector = LlmAgent(
         thinking_config=types.ThinkingConfig(include_thoughts=INCLUDE_THOUGHTS)
     ),
     instruction="""
-    You are a stock data collector at DiamondHands 💎🙌 Investment Group.
+    You are a stock data collector at DiamondHands 💎🙌 Group.
     Fetch all data for the given stock ticker.
 
     You have 10 tools organized in 4 groups:

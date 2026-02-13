@@ -178,12 +178,12 @@ class StockReport(BaseModel):
     """Final stock analysis report output."""
 
     # Report header
-    title: str = Field(..., description="Report title, e.g. 'Stock Analysis: AAPL'.")
+    title: str = Field(..., description="Report title, e.g. 'Stock Ticker: AAPL'.")
     ticker: str = Field(..., description="The stock ticker symbol.")
     date: str = Field(..., description="Date of the report (YYYY-MM-DD).")
     analyst: str = Field(default="Sam Rogers", description="Name of the analyst.")
     firm: str = Field(
-        default="DiamondHands 💎🙌 Entertainment Group", description="Name of the firm."
+        default="DiamondHands 💎🙌 Group", description="Name of the firm."
     )
 
     # Analysis sections
@@ -218,7 +218,11 @@ class StockReport(BaseModel):
     )
     reddit_posts: list[RedditPost] = Field(
         default_factory=list,
-        description="Top Reddit posts about the stock (title, url, subreddit) from r/wallstreetbets, r/stocks, r/redditstock.",
+        description="Reddit posts that mention the ticker (title, url, subreddit, snippet). Empty when none found.",
+    )
+    reddit_note: str | None = Field(
+        default=None,
+        description="Set to 'Reddit isn't showing this much love.' when there are no ticker-related Reddit posts.",
     )
 
     # Earnings date
@@ -235,4 +239,14 @@ class StockReport(BaseModel):
     rating: StockRating = Field(..., description="The final rating recommendation.")
     conclusion: str = Field(
         ..., description="Final conclusion and investment thesis (2-3 sentences)."
+    )
+
+    # Movie quote (one per report, from Margin Call / Wolf of Wall Street / The Big Short / House of Cards)
+    movie_quote_line: str | None = Field(
+        default=None,
+        description="One short memorable quote from a finance/power movie character.",
+    )
+    movie_quote_attribution: str | None = Field(
+        default=None,
+        description="Character and film, e.g. 'Sam Rogers (Margin Call)' or 'Jordan Belfort (Wolf of Wall Street)'.",
     )

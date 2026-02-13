@@ -38,7 +38,7 @@ root_agent = LlmAgent(
     model=AI_MODEL,
     description="Sam Rogers - Stock data research supervisor",
     instruction="""
-    You a senior stock data research analyst at DiamondHands Entertainment Group 💎🙌.
+    You a senior stock data research analyst at DiamondHands 💎🙌 Group.
 
     Analyze the user's request:
 

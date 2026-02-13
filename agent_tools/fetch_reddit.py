@@ -26,11 +26,17 @@ def _snippet_from_selftext(selftext: str) -> str:
     """First 1-2 lines of post body, plain text, truncated."""
     if not selftext or not isinstance(selftext, str):
         return ""
-    # Normalize whitespace, take first 2 lines or first N chars
     text = " ".join(selftext.split())
     if len(text) <= SNIPPET_MAX_CHARS:
         return text.strip()
     return text[: SNIPPET_MAX_CHARS - 3].rstrip() + "..."
+
+
+def _mentions_ticker(text: str, ticker: str) -> bool:
+    """True if ticker appears in text (case-insensitive)."""
+    if not text or not ticker:
+        return False
+    return ticker.upper() in text.upper()
 
 
 @cached(data_type="reddit", ttl_seconds=TTL_INTRADAY, ticker_param="ticker")
@@ -63,14 +69,14 @@ def fetch_reddit(
 
     headers = {"User-Agent": USER_AGENT}
     all_posts: list[dict] = []
-    by_sub: dict[str, list[dict]] = {}
+    by_sub: dict[str, list[dict]] = {f"r/{s}": [] for s in subreddits}
 
     for sub in subreddits:
-        # sort=new: most recent first. limit=3: top 3 per subreddit (recent, actively engaged)
+        # search for ticker in subreddit; sort=relevance so results match the ticker
         url = (
             "https://www.reddit.com/r/{sub}/search.json"
-            "?q={ticker}&restrict_sr=on&sort=new&limit={limit}"
-        ).format(sub=sub, ticker=ticker_upper, limit=max(3, min(10, limit_per_sub)))
+            "?q={ticker}&restrict_sr=on&sort=relevance&limit={limit}"
+        ).format(sub=sub, ticker=ticker_upper, limit=max(5, min(15, limit_per_sub * 5)))
         try:
             resp = requests.get(url, headers=headers, timeout=10)
             resp.raise_for_status()
@@ -85,18 +91,22 @@ def fetch_reddit(
             continue
 
         children = data.get("data", {}).get("children", [])
-        # Top 3 most recent (sort=new already); take exactly 3
         sub_posts = []
-        for child in children[:limit_per_sub]:
+        for child in children:
+            if len(sub_posts) >= limit_per_sub:
+                break
             post_data = child.get("data", {})
             title = post_data.get("title", "")
+            selftext = post_data.get("selftext", "") or ""
+            # Only include posts that mention the ticker in title or body
+            if not _mentions_ticker(title, ticker_upper) and not _mentions_ticker(selftext, ticker_upper):
+                continue
             permalink = post_data.get("permalink", "")
             if not permalink.startswith("/"):
                 permalink = "/" + permalink
             url_str = f"https://www.reddit.com{permalink}" if permalink else ""
             if not title:
                 continue
-            selftext = post_data.get("selftext", "") or ""
             snippet = _snippet_from_selftext(selftext)
             entry = {
                 "subreddit": f"r/{sub}",
@@ -108,10 +118,12 @@ def fetch_reddit(
             all_posts.append(entry)
         by_sub[f"r/{sub}"] = sub_posts
 
+    message = "Reddit isn't showing this much love." if not all_posts else None
     return RedditPostsResult(
         status="success",
         ticker=ticker_upper,
         posts=all_posts,
         by_subreddit=by_sub,
         subreddits_queried=[f"r/{s}" for s in subreddits],
+        message=message,
     ).model_dump()

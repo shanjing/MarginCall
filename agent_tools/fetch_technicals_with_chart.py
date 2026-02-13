@@ -4,14 +4,15 @@ returns structured data with pre-computed signals.
 
 Combines fetch_technical_indicators + generate_trading_chart into one tool call.
 Generates two default charts: 1-year daily and 90-day daily.
-Caches the full result (indicators + signals + chart metadata) for TTL_DAILY.
+Charts: saved to ADK artifacts (when tool_context present) for ADK web UI;
+also cached locally for /api/charts. Return value omits image_base64 for LLM.
 """
 
 from __future__ import annotations
 
+import base64
 from datetime import date, datetime
 
-from google.adk.tools import ToolContext
 from tools.cache.decorators import TTL_DAILY
 from tools.logging_utils import logger
 
@@ -24,6 +25,40 @@ DEFAULT_CHARTS = [
     {"timeframe": "1y", "label": "1-Year Daily"},
     {"timeframe": "3mo", "label": "90-Day Daily"},
 ]
+
+
+async def _load_chart_base64_from_artifact(tool_context: object, png_filename: str) -> str | None:
+    """Load PNG artifact and return base64 string for cache. Returns None on failure."""
+    load_fn = getattr(tool_context, "load_artifact", None)
+    if not load_fn:
+        return None
+    try:
+        part = await load_fn(png_filename)
+        if part is None:
+            return None
+        blob = getattr(part, "inline_data", None) or getattr(part, "inlineData", None)
+        if blob is None:
+            return None
+        data = getattr(blob, "data", None)
+        if data is None or len(data) == 0:
+            return None
+        return base64.b64encode(data).decode("ascii") if isinstance(data, bytes) else None
+    except Exception as e:
+        logger.debug("Could not load chart artifact %s: %s", png_filename, e)
+        return None
+
+
+def _strip_chart_base64(charts: dict) -> dict:
+    """Remove image_base64 from chart entries so they are not sent to the LLM."""
+    if not charts:
+        return charts
+    stripped = {}
+    for k, v in charts.items():
+        if isinstance(v, dict):
+            stripped[k] = {kk: vv for kk, vv in v.items() if kk != "image_base64"}
+        else:
+            stripped[k] = v
+    return stripped
 
 
 def _compute_signals(indicators: dict) -> dict:
@@ -74,25 +109,26 @@ def _compute_signals(indicators: dict) -> dict:
     return signals
 
 
-async def fetch_technicals_with_chart(
-    ticker: str,
-    tool_context: ToolContext | None = None,
-) -> dict:
+async def fetch_technicals_with_chart(ticker: str, tool_context: object | None = None) -> dict:
     """
     Fetch technical indicators and generate TradingView-style charts.
+
+    Runs locally: yfinance + Plotly. Charts stored in local cache.
+    Full result (with chart base64) cached for /api/charts; returned value
+    omits image_base64 to avoid LLM context bloat.
 
     This composite tool:
     1. Fetches RSI, MACD, SMA indicators (cached TTL_DAILY)
     2. Generates two default charts: 1-year daily and 90-day daily
     3. Computes rule-based signals (overbought/oversold, bullish/bearish)
-    4. Caches the full result for TTL_DAILY (24 hours)
+    4. Caches full result for /api/charts; returns stripped (no base64) to agent
 
     Args:
         ticker: Stock symbol (e.g. 'AAPL').
-        tool_context: ADK ToolContext for saving chart artifacts.
+        tool_context: Deprecated; ignored.
 
     Returns:
-        dict with status, indicators, signals, and chart info for both timeframes.
+        dict with status, indicators, signals, and chart metadata (no image_base64).
     """
     logger.info(
         "--- Tool: fetch_technicals_with_chart called for %s ---",
@@ -109,8 +145,12 @@ async def fetch_technicals_with_chart(
     cached_data = await cache.get_json(cache_key)
 
     if cached_data is not None:
+        cached_data = dict(cached_data)
         cached_data["_from_cache"] = True
         logger.info("Cache HIT for technicals_with_chart: %s", ticker)
+        # Return stripped version (no base64) so LLM does not receive chart blobs
+        if "charts" in cached_data:
+            cached_data["charts"] = _strip_chart_base64(cached_data["charts"])
         return cached_data
 
     # ── Cache miss — run full pipeline ──────────────────────────────────
@@ -150,12 +190,27 @@ async def fetch_technicals_with_chart(
             timeframe=timeframe,
             tool_context=tool_context,
         )
-        result["charts"][timeframe] = {
-            "label": label,
-            "result": chart_result,
-        }
+        image_b64 = None
+        if isinstance(chart_result, dict):
+            image_b64 = chart_result.get("image_base64")
+            status_str = chart_result.get("status", "")
+            # When ADK path: generate_trading_chart returns status-only; load from artifact for cache
+            if image_b64 is None and tool_context is not None:
+                png_filename = f"{ticker}_chart_{timeframe}.png"
+                image_b64 = await _load_chart_base64_from_artifact(tool_context, png_filename)
+            result["charts"][timeframe] = {
+                "label": label,
+                "result": status_str,
+                "image_base64": image_b64,
+            }
+        else:
+            result["charts"][timeframe] = {
+                "label": label,
+                "result": str(chart_result),
+                "image_base64": None,
+            }
 
-    # 4. Validate through schema and cache the full result
+    # 4. Validate, cache full result (for /api/charts), return stripped (for LLM)
     validated = TechnicalsWithChartResult(**result).model_dump()
     await cache.put_json(
         cache_key,
@@ -165,4 +220,8 @@ async def fetch_technicals_with_chart(
         data_type="technicals_with_chart",
     )
 
-    return validated
+    # Strip base64 before returning to agent—avoids 100-500KB in LLM context
+    to_return = dict(validated)
+    if "charts" in to_return:
+        to_return["charts"] = _strip_chart_base64(to_return["charts"])
+    return to_return
