@@ -7,12 +7,11 @@ const USER_ID   = "Trader";
 let sessionId   = null;
 let isStreaming  = false;
 
-const messagesEl = document.getElementById("messages");
-const chatForm   = document.getElementById("chat-form");
-const chatInput  = document.getElementById("chat-input");
-const sendBtn    = document.getElementById("send-btn");
-const logPanel   = document.getElementById("log-panel");
-const logContent = document.getElementById("log-content");
+const messagesEl  = document.getElementById("messages");
+const chatForm    = document.getElementById("chat-form");
+const chatInput   = document.getElementById("chat-input");
+const sendBtn     = document.getElementById("send-btn");
+const logContent  = document.getElementById("log-content");
 
 /* ── Helpers ─────────────────────────────────────────────────── */
 
@@ -63,6 +62,45 @@ function fmtMoney(val) {
   return sign + "$" + abs.toLocaleString();
 }
 
+/* ── LogStream: permanent SSE log panel ──────────────────────── */
+
+const LogStream = (function () {
+  const MAX_LINES = 200;
+  let _source = null;
+
+  function _appendLine(text) {
+    if (!logContent) return;
+    var line = document.createElement("div");
+    line.className = "log-line";
+    line.textContent = text;
+    logContent.appendChild(line);
+    // Cap DOM children to avoid bloat
+    while (logContent.children.length > MAX_LINES) {
+      logContent.removeChild(logContent.firstChild);
+    }
+    // Auto-scroll to bottom
+    logContent.scrollTop = logContent.scrollHeight;
+  }
+
+  function connect() {
+    if (_source) return;
+    _source = new EventSource("/api/log_stream");
+    _source.onmessage = function (evt) {
+      try {
+        var data = JSON.parse(evt.data);
+        if (data.log) {
+          _appendLine(data.log);
+        }
+      } catch (_) { /* ignore */ }
+    };
+    _source.onerror = function () {
+      // EventSource auto-reconnects natively
+    };
+  }
+
+  return { connect: connect };
+})();
+
 /* ── Session management ──────────────────────────────────────── */
 
 async function createSession() {
@@ -93,51 +131,13 @@ async function sendMessage(text) {
   isStreaming = true;
   setInputEnabled(false);
 
-  let logAbort = null;
-  if (logPanel && logContent) {
-    logPanel.setAttribute("aria-hidden", "false");
-    logContent.textContent = "";
-    logAbort = new AbortController();
-    (function streamLogs() {
-      fetch("/api/log_stream", { signal: logAbort.signal })
-        .then(function (r) {
-          if (!r.ok || !r.body) return;
-          var reader = r.body.getReader();
-          var decoder = new TextDecoder();
-          var buf = "";
-          function processChunk(result) {
-            if (result.done) return;
-            buf += decoder.decode(result.value, { stream: true });
-            var lines = buf.split("\n");
-            buf = lines.pop() || "";
-            for (var i = 0; i < lines.length; i++) {
-              var line = lines[i];
-              if (!line.startsWith("data: ")) continue;
-              var raw = line.slice(6).trim();
-              if (!raw) continue;
-              try {
-                var data = JSON.parse(raw);
-                if (data.log && logContent) {
-                  logContent.textContent += data.log + "\n";
-                  logPanel.scrollTop = logPanel.scrollHeight;
-                }
-              } catch (_) { /* ignore */ }
-            }
-            return reader.read().then(processChunk);
-          }
-          return reader.read().then(processChunk);
-        })
-        .catch(function () { /* aborted or closed */ });
-    })();
-  }
-
   // User bubble
   addMessage("user", text);
 
   // Agent bubble (will be filled by streaming); show loading until first content
   const agentContent = addMessage("agent", "");
   agentContent.innerHTML =
-    '<span class="message-loading"><span class="spinner"></span>Working on your report…</span>';
+    '<span class="message-loading"><span class="hourglass"></span> Working on your report…</span>';
 
   // Track accumulated text
   let fullText = "";
@@ -196,17 +196,19 @@ async function sendMessage(text) {
               fullText += part.text;
             }
           }
-          // Re-render accumulated text as markdown
-          agentContent.innerHTML = DOMPurify.sanitize(marked.parse(fullText));
-          scrollToBottom();
         }
       }
     }
   } catch (err) {
     addSystemMessage("Connection error: " + err.message);
   } finally {
-    if (logAbort) logAbort.abort();
-    if (logPanel) logPanel.setAttribute("aria-hidden", "true");
+    // Stream done — render accumulated text (replaces the hourglass)
+    if (fullText) {
+      agentContent.innerHTML = DOMPurify.sanitize(marked.parse(fullText));
+    } else {
+      agentContent.innerHTML = "";
+    }
+    scrollToBottom();
     isStreaming = false;
     setInputEnabled(true);
     chatInput.focus();
@@ -262,6 +264,8 @@ chatForm.addEventListener("submit", (e) => {
 /* ── Init ────────────────────────────────────────────────────── */
 
 (async function init() {
+  // Start permanent log stream (connects once, auto-reconnects)
+  LogStream.connect();
   try {
     await createSession();
     addSystemMessage("Ask me about any stock, market sentiments, market news, earnings date, etc.");

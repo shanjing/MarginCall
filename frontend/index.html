@@ -17,9 +17,6 @@
 
     <main id="chat-container">
       <div id="messages"></div>
-      <div id="log-panel" class="log-panel" aria-hidden="true">
-        <pre id="log-content"></pre>
-      </div>
     </main>
 
     <footer>
@@ -33,6 +30,12 @@
         <button type="submit" id="send-btn">Send</button>
       </form>
     </footer>
+  </div>
+
+  <!-- Permanent log panel (fixed, lower-left) -->
+  <div id="log-panel" class="log-panel">
+    <div class="log-panel-header"><span class="log-pulse"></span> SYSTEM LOG</div>
+    <div id="log-content" class="log-panel-body"></div>
   </div>
 
   <script src="report-renderer.js"></script>

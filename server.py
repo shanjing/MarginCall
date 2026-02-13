@@ -41,6 +41,7 @@ app = get_fast_api_app(
 _log_subscribers: list[asyncio.Queue[str]] = []
 _shared_log_queue: queue.Queue[str] = queue.Queue()
 _log_replay: deque[str] = deque(maxlen=400)
+_consumer_started: bool = False
 
 
 class LogStreamHandler(logging.Handler):
@@ -59,6 +60,28 @@ class LogStreamHandler(logging.Handler):
             self.handleError(record)
 
 
+# Module-level handler — created and attached at import time so it works
+# regardless of whether on_startup fires (adk web vs uvicorn server:app).
+_log_handler = LogStreamHandler()
+_log_handler.setLevel(logging.DEBUG)
+_log_handler.setFormatter(
+    logging.Formatter("[%(asctime)s] %(levelname)-8s %(message)s", datefmt="%m/%d/%y %H:%M:%S")
+)
+_root = logging.getLogger()
+_root.setLevel(logging.INFO)
+_root.addHandler(_log_handler)
+_shared_log_queue.put_nowait("[LOG STREAM] Handler attached at module load.")
+
+
+def _ensure_log_handler():
+    """(Re-)attach the LogStreamHandler to root if missing (e.g. after basicConfig(force=True))."""
+    root = logging.getLogger()
+    if _log_handler not in root.handlers:
+        root.addHandler(_log_handler)
+    if root.level > logging.INFO:
+        root.setLevel(logging.INFO)
+
+
 def _get_log_line():
     try:
         return _shared_log_queue.get(timeout=0.12)
@@ -69,8 +92,14 @@ def _get_log_line():
 async def _log_broadcast_consumer():
     """Moves log lines from thread-safe queue to all subscriber queues and replay buffer."""
     loop = asyncio.get_event_loop()
+    _heal_counter = 0
     while True:
         try:
+            _heal_counter += 1
+            if _heal_counter >= 10:
+                _ensure_log_handler()
+                _heal_counter = 0
+
             line = await loop.run_in_executor(None, _get_log_line)
             if line is not None:
                 _log_replay.append(line)
@@ -83,20 +112,16 @@ async def _log_broadcast_consumer():
             await asyncio.sleep(0.05)
 
 
-def _setup_log_stream():
-    """Add handler to root and uvicorn loggers; start broadcast consumer task."""
-    from tools.logging_utils import get_log_level
+def _ensure_consumer_started():
+    """Start the broadcast consumer task if not already running.
 
-    root = logging.getLogger()
-    # Use same level as tools (LOG_LEVEL env or INFO); root default WARNING would drop INFO
-    root.setLevel(get_log_level())
-    handler = LogStreamHandler()
-    handler.setFormatter(
-        logging.Formatter("[%(asctime)s] %(levelname)-8s %(message)s", datefmt="%m/%d/%y %H:%M:%S")
-    )
-    root.addHandler(handler)
-    for name in ("uvicorn", "uvicorn.access", "uvicorn.error"):
-        logging.getLogger(name).addHandler(handler)
+    Safe to call from any async context (startup hook, first SSE request, etc.).
+    """
+    global _consumer_started
+    if _consumer_started:
+        return
+    _consumer_started = True
+    asyncio.create_task(_log_broadcast_consumer())
 
 
 # Charts API: fetch chart images from cache (populated when pipeline runs)
@@ -129,6 +154,10 @@ async def get_charts(ticker: str):
 @charts_router.get("/log_stream")
 async def log_stream():
     """SSE stream of server logs. Replays recent buffer then streams new lines in real time."""
+    # Ensure consumer is running (covers case where on_startup didn't fire)
+    _ensure_consumer_started()
+    _ensure_log_handler()
+
     client_queue: asyncio.Queue[str] = asyncio.Queue()
     _log_subscribers.append(client_queue)
 
@@ -167,8 +196,8 @@ async def log_stream():
 
 @app.on_event("startup")
 async def on_startup():
-    _setup_log_stream()
-    asyncio.create_task(_log_broadcast_consumer())
+    _ensure_log_handler()
+    _ensure_consumer_started()
 
 
 app.include_router(charts_router)
