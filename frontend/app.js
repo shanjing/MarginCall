@@ -68,11 +68,16 @@ const LogStream = (function () {
   const MAX_LINES = 200;
   let _source = null;
 
+  function _stripTimestamp(text) {
+    // Remove leading "[MM/DD/YY HH:MM:SS] " prefix from server log format
+    return text.replace(/^\[\d{2}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2}\]\s*/, "");
+  }
+
   function _appendLine(text) {
     if (!logContent) return;
     var line = document.createElement("div");
     line.className = "log-line";
-    line.textContent = text;
+    line.textContent = _stripTimestamp(text);
     logContent.appendChild(line);
     // Cap DOM children to avoid bloat
     while (logContent.children.length > MAX_LINES) {
@@ -99,6 +104,17 @@ const LogStream = (function () {
   }
 
   return { connect: connect };
+})();
+
+/* ── Log panel toggle (collapse / expand) ────────────────────── */
+(function () {
+  var toggle = document.getElementById("log-toggle");
+  var panel = document.getElementById("log-panel");
+  if (toggle && panel) {
+    toggle.addEventListener("click", function () {
+      panel.classList.toggle("collapsed");
+    });
+  }
 })();
 
 /* ── Session management ──────────────────────────────────────── */

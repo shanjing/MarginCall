@@ -32,9 +32,13 @@
     </footer>
   </div>
 
-  <!-- Permanent log panel (fixed, lower-left) -->
-  <div id="log-panel" class="log-panel">
-    <div class="log-panel-header"><span class="log-pulse"></span> SYSTEM LOG</div>
+  <!-- Permanent log panel (fixed, lower-left, collapsible) -->
+  <div id="log-panel" class="log-panel collapsed">
+    <div class="log-panel-header" id="log-toggle">
+      <span class="log-pulse"></span>
+      <span>SYSTEM LOG</span>
+      <span class="log-chevron"></span>
+    </div>
     <div id="log-content" class="log-panel-body"></div>
   </div>
 
