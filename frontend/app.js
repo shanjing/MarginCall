@@ -153,7 +153,7 @@ async function sendMessage(text) {
   // Agent bubble (will be filled by streaming); show loading until first content
   const agentContent = addMessage("agent", "");
   agentContent.innerHTML =
-    '<span class="message-loading"><span class="hourglass"></span> Working on your report…</span>';
+    '<span class="message-loading"><span class="hourglass"></span> Working on your request…</span>';
 
   // Track accumulated text
   let fullText = "";
@@ -176,7 +176,7 @@ async function sendMessage(text) {
           role: "user",
           parts: [{ text: text }],
         },
-        streaming: true,
+        streaming: false,
       }),
     });
 
@@ -206,12 +206,21 @@ async function sendMessage(text) {
         let event;
         try { event = JSON.parse(json); } catch (_) { continue; }
 
-        if (event.content && event.content.parts) {
-          for (const part of event.content.parts) {
-            if (part.text) {
-              fullText += part.text;
-            }
+        // Accumulate text from any event shape ADK may send
+        var parts = (event.content && event.content.parts) ? event.content.parts : [];
+        for (var pi = 0; pi < parts.length; pi++) {
+          if (parts[pi].text) {
+            fullText += parts[pi].text;
           }
+        }
+        // Also check for text directly on event (some ADK versions)
+        if (!parts.length && event.text) {
+          fullText += event.text;
+        }
+        // Render progressively so simple (non-report) answers show immediately
+        if (fullText) {
+          agentContent.innerHTML = DOMPurify.sanitize(marked.parse(fullText));
+          scrollToBottom();
         }
       }
     }

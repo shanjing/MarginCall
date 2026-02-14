@@ -1,4 +1,7 @@
 FROM python:3.13-slim
+LABEL description="MarginCall with Frontend UI"
+LABEL version="1.1"
+LABEL maintainer="DiamondHands Group"
 WORKDIR /app
 
 COPY requirements.txt .
