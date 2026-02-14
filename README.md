@@ -2,22 +2,37 @@
 
 MarginCall is a production-grade multi-agent research framework built on Google ADK. It orchestrates AI agents to ingest unstructured web data and real-time market signals, synthesizing high-fidelity reports delivered via a movie-inspired persona (Sam Rogers).
 
-1. Agent Intelligence & Design
-The system employes a supervisor-led, multi-agent collaboration design: supervisor model at the top, sequential handoffs + expert team inside the pipeline, and “agent as a tool” used for both the pipeline and the news sub-agent. This demonstrates a real-world application of MCP and tool-calling using Google's LLM capabilities. 
 
-2. Extensibility via Claude Code Provides a pre-configured suite of rich contexts, custom commands, and skills tailored for Claude Code. This allows developers to immediately take over the codebase, enabling AI-assisted feature expansion and architectural refactoring out of the box.
+**Design**
 
-3. Scalable Cloud Architecture
-Designed for horizontal scalability, the backend is containerized with Docker and orchestrated via Kubernetes (EKS/GKE).
+1. Agentic Pattern 
+The system employs a supervisor-led, multi-agent collaboration design: 
+- supervisor model at the top, sequential handoffs + expert team inside the pipeline
+- “agent as a tool” used for both the pipeline and the news sub-agent. 
+- MCP and tool-calling to provide real-time knowledge
 
-State Management: Redis-backed LRU caching for ephemeral data. [TODO]
+2. Infrastructure 
+- 3-tier cache for different data sources with 80%+ expected cache hits (performance, cost control)
+- Token Monitoring and Rate-Limit to avoid flooding session states (cost control)
 
-Resiliency: Implements automated retry logic and rate-limiting to handle volatile API/web-scraping upstream. [TODO]
+3. Agent Development 
+- System and Agentic two layers with separate schemas for quick development and easy debugging
+- Strong data schemas to ensure data fidelity and to eliminate LLM hallucinations
 
-4. Observability [TODO]
+4. Cloud Deployment
+Stateless design for horizontal scalability, can run in:
+- a Docker container/Kubernetes Pods or 
+- a headless adk web or
+- CLI for debugging
 
+5. Observability [W.I.P]
+- token monitoring to prevent bloating LLM context; (W.I.P)
+- extensive logging in CLI;
+- export metrics for Prometheus/Grafana stack;
+- use third party tools such as AgentOps
 
-Disclaimer: This project is for entertainment and technical demonstration only. It is not investment advice. AI can hallucinate; always verify data independently.
+6. AI Integration
+A suite of rich contexts, custom commands, and skills tailored for AI coding assistants is provided to allow AI-assisted project explanation and feature expansion.
 
 
 **Requirements to run the agent**
@@ -39,8 +54,21 @@ python -m venv .venv
 pip install -r reqiurements.txt
 ```
 
+**Models and API keys**
+- Cloud based models such as gemini-* is recommended for extensive tools support and google internal tools (searh etc).
+- Must have API keys to use cloud based models (see env.example file)
+- Local LLM (ollama) models must support tools, qwen3-coder-next.
+
+
 **To start the agent**
-1. Start ADK UI
+(must set API key in .env file, see env.example as a template)
+1. Run full UI version (the quickest way to see the full features)
+```
+cd MarginCall; source .venv/bin/activate
+uvicorn server:app --host 0.0.0.0 --port 8080
+#open browser to localhost:8080
+```
+2. Start ADK UI
 ```
 adk web
 # a. Open browser to localhost:8000
@@ -48,7 +76,7 @@ adk web
 # c. In the chat box, start talking to the agent "give me a real-time research on AAPL"
 ```
 
-2. To run in CLI for debugging or text-based chat:
+4. To run in CLI for debugging or text-based chat:
 ```
 python -m main run --help
 python -m main run -i "tell me about GOOGL"
@@ -58,34 +86,17 @@ python -m main run -i "what is AMZN's option put/call ratio right now?"
 python -m main run -i "tell me about GOOGL" -d -t
 ```
 
-**Architecture & infrastructure**
-
-The project structure is crafted by a utility **agent_forge** (to be open sourced on GitHub soon); it is structured for clarity and future scale.
-
-- **Config** — Env-driven (`tools/config.py`): model (cloud/local), cache backend, root and sub-agents, timeouts; no hardcoding.
-- **Caching** — Pluggable backend (SQLite today; Redis or GCS later via `CACHE_BACKEND`), single key shape and TTL tiers so data tools stay backend-agnostic.
-- **Sessions** — Configurable (`SESSION_SERVICE_URI`); FastAPI server and CLI load agents from config.
-- **Automation** — Env/agent sanity checks (`check_env.py`), single Docker path with `--env-file`, runner that discovers and runs the pipeline from `ROOT_AGENT` and `SUB_AGENTS`.
-- **Agentic layer** — Supervisor → pipeline → data/report/present is kept separate from this plumbing so adding tools or sub-agents stays straightforward.
-
-
-**Deployment Options**
-1. Local Docker Container
+5. To run in a docker container
 ```
-  # Build
-  docker build -t margincall:latest .
-  
-  # SRE nuke test to ensure there is no api key leaking in the image
-  docker run --rm margincall:latest grep -r "sk-" /app
+(create .env file with API keys, see env.example)
+docker build -t margincall:latest .
 
-  # Run (env vars from .env on the host; not baked into the image)
-  docker run -p 8080:8080 --env-file .env margincall:latest
+# Security check to ensure there is no api key leaking in the image
+docker run --rm margincall:latest grep -r "sk-" /app
+
+docker run -p 8080:8080 --env-file .env margincall:latest
+#open a browser to localhost:8080
 ```
-  Then access at http://localhost:8080 (web UI) or http://localhost:8080/docs (Swagger).
-
-2. Agent Engine in Vertex AI
-3. Cloud Run
-4. Google Kubernetes Engine (GKE)
 
 **Agentic Pattern**
 
@@ -141,8 +152,9 @@ Supervisor → AgentTool(sequential pipeline (data → report → present)):
 
 The agentic design, project structure, majority code and infrastructure design were created by **[Shan Jing](https://www.linkedin.com/in/shanjing/)** (mr.shanjing@gmail.com). 
 
-For educational use and ongoing feature development, Claude Code context, commands, and skills were added to the project.
 
 **License & disclaimer**
 
 This project is open source; use and modify it as you like. It is provided **as-is, without warranty**. The authors are not liable for any use of this software. This is not financial or investment advice—see the disclaimer at the top of this README.
+
+Disclaimer: This project is for entertainment and technical demonstration only. It is not investment advice. AI can hallucinate; always verify data independently.
