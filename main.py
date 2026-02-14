@@ -13,6 +13,7 @@ python -m main run --help
 
 from __future__ import annotations
 
+import agentops
 import asyncio
 import importlib
 import os
@@ -28,6 +29,14 @@ from tools.config import AI_MODEL_NAME, INCLUDE_THOUGHTS, LOCAL_LLM, ROOT_AGENT,
 from tools.logging_utils import logger, setup_logging, THEME
 from tools.runner_utils import execute_agent_stream, APP_NAME
 
+# Initialize AgentOps for observability 
+# https://google.github.io/adk-docs/integrations/agentops/#how-agentops-instruments-adk
+agentops.init(
+    api_key=os.getenv("AGENTOPS_API_KEY"), # Your AgentOps API Key
+    trace_name="margincall-adk-app-trace"  # Optional: A name for your trace
+    # auto_start_session=True is the default.
+    # Set to False if you want to manually control session start/end.
+)
 
 def _load_root_agent() -> object:
     mod = importlib.import_module(f"{ROOT_AGENT}.agent")
