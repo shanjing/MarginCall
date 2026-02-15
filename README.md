@@ -12,8 +12,8 @@ The system employs a supervisor-led, multi-agent collaboration design:
 - MCP and tool-calling to provide real-time knowledge
 
 2. Infrastructure 
-- 3-tier cache for different data sources with 80%+ expected cache hits (performance, cost control)
-- Token Monitoring and Rate-Limit to avoid flooding session states (cost control)
+- 3-tier cache for different data sources with 80%+ expected cache hits to reduce latency
+- Token Monitoring and Rate-Limit to avoid flooding session states for cost control
 
 3. Agent Development 
 - System and Agentic two layers with separate schemas for quick development and easy debugging
@@ -32,7 +32,8 @@ Stateless design for horizontal scalability, can run in:
 - use third party tools such as AgentOps
 
 6. AI Integration
-A suite of rich contexts, custom commands, and skills tailored for AI coding assistants is provided to allow AI-assisted project explanation and feature expansion.
+
+Claude Code contexts, commands, and skills tailored for AI assistants.
 
 
 **Requirements to run the agent**
@@ -66,6 +67,7 @@ pip install -r reqiurements.txt
 ```
 cd MarginCall; source .venv/bin/activate
 uvicorn server:app --host 0.0.0.0 --port 8080
+
 #open browser to localhost:8080
 ```
 2. Start ADK UI
@@ -150,11 +152,11 @@ Supervisor → AgentTool(sequential pipeline (data → report → present)):
 
 **Credits**
 
-The agentic design, project structure, majority code and infrastructure design were created by **[Shan Jing](https://www.linkedin.com/in/shanjing/)** (mr.shanjing@gmail.com). 
+The agentic design, project structure, data schema, infrastructure design and agent/utility code were created by **[Shan Jing](https://www.linkedin.com/in/shanjing/)** (mr.shanjing@gmail.com). Frontend UI code is 100%  done by AI/Cursor.
 
 
 **License & disclaimer**
 
-This project is open source; use and modify it as you like. It is provided **as-is, without warranty**. The authors are not liable for any use of this software. This is not financial or investment advice—see the disclaimer at the top of this README.
+This project is open source; use and modify it as you like. It is provided **as-is, without warranty**. The authors are not liable for any use of this software.
 
 Disclaimer: This project is for entertainment and technical demonstration only. It is not investment advice. AI can hallucinate; always verify data independently.
