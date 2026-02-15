@@ -13,7 +13,8 @@ Multi-agent stock analyst on **Google ADK** (Python). Supervisor → sequential 
 ## Quick Commands
 
 ```bash
-cd ../adk-lab && source .venv/bin/activate && cd MarginCall
+cd ../MarginCall && source .venv/bin/activate && cd MarginCall
+uvicorn server:app --host 0.0.0.0 --port 8080
 adk web                    # dev UI, localhost:8000
 adk run stock_analyst      # interactive CLI
 python -m main run -i "tell me about GOOGL" -d -t   # project CLI, debug
@@ -54,6 +55,7 @@ Data flows via `session.state` and `output_key`. Root routes: research → pipel
 
 ## Hard rules
 
+- **API Key:** Must have an API Key to access cloud based LLM, gemini-* recommended.
 - **Naming:** Agent variable = `name=` = directory name. Enforced by `check_env.py`.
 - **Model:** Always `model=AI_MODEL` from `tools/config.py`. Never hardcode.
 - **Schemas:** `agent_tools/tool_schemas.py` = tool return contracts. `agent_tools/schemas.py` = LLM output (e.g. StockReport). Do not merge. **output_schema** only on agents with **no** `tools=[]` (ADK limitation).
@@ -86,7 +88,7 @@ Full checklist: `/add-agent` or `.claude/commands/add-agent.md`.
 
 ## Environment
 
-- Venv: `../adk-lab/.venv/`. `.env` at repo root: `GOOGLE_API_KEY`, `CLOUD_AI_MODEL` or `LOCAL_AI_MODEL`, `ROOT_AGENT=stock_analyst`, `SUB_AGENTS`, `CACHE_BACKEND=sqlite`, `BRAVE_API_KEY` (non-Gemini news).
+- Venv: `../MarginCall/.venv/`. `.env` at repo root: `GOOGLE_API_KEY`, `CLOUD_AI_MODEL` or `LOCAL_AI_MODEL`, `ROOT_AGENT=stock_analyst`, `SUB_AGENTS`, `CACHE_BACKEND=sqlite`, `BRAVE_API_KEY` (non-Gemini news).
 
 ---
 
