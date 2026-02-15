@@ -30,7 +30,6 @@ node_modules/
 *.db-*
 *.log
 *.bin
-**/cache/
 .adk
 .env
 plan.md
