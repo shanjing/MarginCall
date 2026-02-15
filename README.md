@@ -33,7 +33,16 @@ Stateless design for horizontal scalability, can run in:
 
 6. AI Integration
 
-Claude Code contexts, commands, and skills tailored for AI assistants.
+Claude Code contexts, commands, and skills are provided for AI assistants.
+```
+git clone https://github.com/shanjing/MarginCall
+cd MarginCall
+claude
+>/context
+> tell me about this project, what it does, the structure, the requirements and how to run it
+...
+```
+
 
 
 **Requirements to run the agent**
