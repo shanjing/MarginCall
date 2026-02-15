@@ -4,6 +4,11 @@ MarginCall is a production-grade multi-agent research framework built on Google 
 
 <img width="1777" height="1107" alt="margincall_ui_small" src="https://github.com/user-attachments/assets/1dae7abf-f1a7-4197-8d05-2481858fe5a8" />
 
+<img width="1780" height="1112" alt="margincall_ui_small_1" src="https://github.com/user-attachments/assets/6d998fcb-6e7b-406d-97c7-0318027b51c7" />
+
+<img width="1778" height="1111" alt="margincall_ui_small_2" src="https://github.com/user-attachments/assets/5ce87171-08e5-46b9-b65d-6da9602987c6" />
+
+
 
 **Design**
 
