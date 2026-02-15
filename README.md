@@ -1,6 +1,6 @@
 ## MarginCall
 
-MarginCall is a production-grade multi-agent research framework built on Google ADK. It orchestrates AI agents to ingest unstructured web data and real-time market signals, synthesizing high-fidelity reports delivered via a movie-inspired persona (Sam Rogers).
+MarginCall is a multi-agent research AI built on Google ADK. It orchestrates AI agents to ingest unstructured web data and real-time market signals, synthesizing high-fidelity reports delivered via a movie-inspired persona (Sam Rogers).
 
 <img width="1777" height="1107" alt="margincall_ui_small" src="https://github.com/user-attachments/assets/1dae7abf-f1a7-4197-8d05-2481858fe5a8" />
 
