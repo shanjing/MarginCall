@@ -242,6 +242,7 @@ echo ""
 if check_venv && check_env_file && check_api_key && check_model_configured; then
   printf "${G}✓ All checks passed. Environment is already set up.${N}\n"
   get_model_display
+  bash "$SCRIPT_DIR/scripts/install_venv_banner.sh" 2>/dev/null || true
   read -r -p "Change model or API key? (y/n): " change_choice
   case "$change_choice" in
     [yY]|[yY][eE][sS])
@@ -259,7 +260,7 @@ if check_venv && check_env_file && check_api_key && check_model_configured; then
   read -r -p "Start the agent now? (y/n): " start_choice
   case "$start_choice" in
     [yY]|[yY][eE][sS]) start_agent ;;
-    *) printf "${D}Setup is complete. See README.md for how to start the agent or just run setup.sh again to start it.${N}\n" ;;
+    *) printf "${D}Setup is complete. See README.md for how to start the agent or just run setup.sh again to start it.\nTo activate the virtual environment (shows MarginCall summary and chart):\nsource .venv/bin/activate${N}\n" ;;
   esac
   exit 0
 fi
@@ -328,6 +329,8 @@ exec 0</dev/null
 
 python3.11 -m venv .venv
 printf "  ${G}✓${N} .venv created\n"
+# Install activation banner (summary + stock chart) so "source .venv/bin/activate" shows it
+bash "$SCRIPT_DIR/scripts/install_venv_banner.sh" 2>/dev/null || true
 source .venv/bin/activate
 # Install tqdm first so install_with_progress can show a progress bar
 pip install tqdm -q

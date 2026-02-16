@@ -47,7 +47,7 @@ GCS: cache_key → object name, data → object body, metadata → custom metada
 ### The Right Pattern: Cache Interface + Pluggable Backends
 
 ```
-Your tool functions (fetch_vix, fetch_financials, etc.)
+tool functions (fetch_vix, fetch_financials, etc.)
         │
         ▼
   CacheInterface (abstract)        ← stable contract
@@ -128,12 +128,12 @@ ADK's `ArtifactService` uses GCS buckets with the pattern:
 gs://bucket/app_name/user_id/session_id/artifact_name
 ```
 
-Your cache keys can coexist by using a different prefix:
+Cache keys can coexist by using a different prefix:
 ```
 gs://bucket/cache/{ticker}/{data_type}/{date}
 ```
 
-When you migrate to GCS, you'd implement `GCSCacheBackend` that writes to the `cache/` prefix, separate from ADK's artifact namespace.
+When migrate to GCS, implement `GCSCacheBackend` that writes to the `cache/` prefix, separate from ADK's artifact namespace.
 
 ### Revised File Structure
 
@@ -161,7 +161,7 @@ CACHE_BACKEND = os.getenv("CACHE_BACKEND", "sqlite")  # "sqlite" | "redis" | "gc
 |------|------|
 | `CacheBackend` ABC + `SQLiteCacheBackend` | 1 |
 | `@cached` decorator with TTL tiers | 0.5 |
-| Wrap all 7 tools with caching | 1 |
+| Wrap all data tools with caching | 1 |
 | Chart artifact caching (binary blobs in SQLite) | 0.5 |
 | Config + backend selection | 0.5 |
 | Testing | 0.5 |
@@ -171,4 +171,4 @@ Future backends (Redis, GCS) are ~0.5-1 day each since the interface is already 
 
 ### Bottom Line
 
-Build the **abstract interface now**, implement **SQLite only**. When you move to Cloud Run, swap in Redis/GCS by changing one env var. Your tool functions never change — they just call `cache.get()` and `cache.put()`.
+Build the **abstract interface now**, implement **SQLite only**. When move to Cloud Run, swap in Redis/GCS by changing one env var. The tool functions never change — they just call `cache.get()` and `cache.put()`.

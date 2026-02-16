@@ -1,16 +1,16 @@
-# How We Accidentally Maxed Out Our LLM's TPM — And Fixed It
+# How Accidentally Maxed Out Our LLM's TPM — And Fixed It
 
 **A case study in agent architecture: when session.state and tool returns dump 500KB of base64 into every prompt.**
 
 ---
 
-## The Problem Nobody Warns You About
+## The Problem Nobody Warns Me About
 
-You build a multi-agent stock analysis system. It fetches price data, financials, technical charts, sentiment, options, Reddit posts, and news. It synthesizes everything into a polished report. It works — until one day you notice your API bills are climbing, responses are slower, and you're hitting rate limits.
+Build a multi-agent stock analysis system. It fetches price data, financials, technical charts, sentiment, options, Reddit posts, and news. It synthesizes everything into a polished report. It works — until one day I notice my API bills are climbing, responses are sloIr, and I'm hitting rate limits.
 
-Turns out you've been sending **100–500KB of base64-encoded chart images** to the LLM on every run. Twice.
+Turns out I've been sending **100–500KB of base64-encoded chart images** to the LLM on every run. Twice.
 
-This is the story of how we found and fixed that in **MarginCall**, an open-source stock research agent built with the Google Agent Development Kit (ADK).
+This is the story of how I found and fixed that in **MarginCall**, an open-source stock research agent built with the Google Agent Development Kit (ADK).
 
 ---
 
@@ -47,7 +47,7 @@ The `report_synthesizer` reads `session.state.stock_data` and produces the final
 
 ## The Original (Non-Ideal) Implementation
 
-### What We Did
+### What I (actually my code's bug) Did
 
 `fetch_technicals_with_chart` is a composite tool that:
 
@@ -85,14 +85,14 @@ In ADK (and most agent frameworks), two things happen:
 2. **Session state is injected into the next agent's context**  
    The `report_synthesizer` receives `session.state` as part of its prompt. Since `stock_data` contained the full technicals (including base64 charts), the LLM got the same bloat again.
 
-So we were sending the charts to the LLM **at least twice** per run:
+So I Ire sending the charts to the LLM **at least twice** per run:
 
 | Step | Recipient | Data |
 |------|-----------|------|
 | 1 | stock_data_collector | Full tool response with base64 |
 | 2 | report_synthesizer | session.state.stock_data with base64 |
 
-Add the other tool results (financials, options, Reddit, news) and we were easily hitting **300–500KB+** of input tokens per run. That's expensive, slow, and often unnecessary — the report synthesizer only needs **indicators and signals** (e.g. "RSI 33.8, bearish MACD"), not the raw chart pixels.
+Add the other tool results (financials, options, Reddit, news) and I Ire easily hitting **300–500KB+** of input tokens per run. That's expensive, slow, and often unnecessary — the report synthesizer only needs **indicators and signals** (e.g. "RSI 33.8, bearish MACD"), not the raw chart pixels.
 
 ---
 
@@ -107,7 +107,7 @@ Add the other tool results (financials, options, Reddit, news) and we were easil
 
 ## The Fix
 
-We changed three things.
+I changed three things.
 
 ### 1. Strip Base64 Before Returning to the Agent
 
@@ -140,7 +140,7 @@ return to_return  # Agent sees this — no base64
 
 `generate_trading_chart` now:
 
-- Saves charts to **ADK artifacts** when `tool_context` is present (for ADK web UI)
+- Saves charts to **ADK artifacts** when `tool_context` is present (for ADK Ib UI)
 - Returns **status-only** (no `image_base64`) when using the artifact path
 - The caller (`fetch_technicals_with_chart`) loads the PNG from the artifact for the cache when needed
 
@@ -153,7 +153,7 @@ return {
 }
 ```
 
-Artifacts are stored separately and **do not** go to the LLM. Only the tool's return value does — and we keep that small.
+Artifacts are stored separately and **do not** go to the LLM. Only the tool's return value does — and I keep that small.
 
 ### 3. Keep Full Data in Cache for the Frontend
 
@@ -196,15 +196,15 @@ report_synthesizer
 
 ## Key Takeaways
 
-1. **Tool return values go to the LLM** — Whatever your tools return becomes part of the conversation. Keep it lean.
+1. **Tool return values go to the LLM** — Whatever the tools return becomes part of the conversation. Keep it lean.
 
-2. **Session state goes to the next agent** — If you store large blobs in `session.state`, they will be in the next agent's prompt. Prefer references (filenames, cache keys) over raw data.
+2. **Session state goes to the next agent** — If storing large blobs in `session.state`, they will be in the next agent's prompt. Prefer references (filenames, cache keys) over raw data.
 
-3. **Artifacts ≠ context** — ADK's `save_artifact` stores binaries separately. They don't bloat the LLM unless you explicitly pass them. Use artifacts for generated files; use status strings for tool returns.
+3. **Artifacts ≠ context** — ADK's `save_artifact` stores binaries separately. They don't bloat the LLM unless the code explicitly pass them. Use artifacts for generated files; use status strings for tool returns.
 
 4. **Cache for consumers, strip for the model** — Cache the full payload for APIs and UIs. Return a trimmed version to the agent.
 
-5. **The report synthesizer didn't need the charts** — It only needed RSI, MACD, SMA signals. We were sending pixels for no reason. Always ask: *what does the model actually need?*
+5. **The report synthesizer didn't need the charts** — It only needed RSI, MACD, SMA signals. I Ire sending pixels for no reason. Always ask: *what does the model actually need?*
 
 ---
 
@@ -214,13 +214,13 @@ report_synthesizer
 |--------|--------|-------|
 | Chart data to LLM | ~200–400KB base64 | 0 (metadata only) |
 | Total stock_data size | ~300–500KB | ~20–50KB |
-| TPM impact | High | Much lower |
-| Charts in ADK web UI | Yes (artifacts) | Yes |
+| TPM impact | High | Much loIr |
+| Charts in ADK Ib UI | Yes (artifacts) | Yes |
 | Charts in custom frontend | Yes (/api/charts) | Yes |
 
 ---
 
-## Try It Yourself
+## How to try it
 
 MarginCall is open source. The relevant code lives in:
 
@@ -229,8 +229,8 @@ MarginCall is open source. The relevant code lives in:
 - `stock_analyst/sub_agents/stock_data_collector/agent.py` — pipeline definition
 - `stock_analyst/sub_agents/report_synthesizer/agent.py` — consumes session.state
 
-Run a stock analysis and watch the logs. You'll see cache hits, stripped payloads, and no base64 in the agent context.
+Run a stock analysis and watch the logs. See cache hits, stripped payloads, and no base64 in the agent context.
 
 ---
 
-*If you're building agent systems with rich tool outputs, audit what actually reaches the model. Your TPM (and your wallet) will thank you.*
+*When building agent systems with rich tool outputs, audit what actually reaches the model. Your TPM (and your wallet) will thank you.*
