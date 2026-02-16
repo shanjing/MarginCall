@@ -4,6 +4,7 @@ import yfinance as yf
 
 from tools.cache.decorators import TTL_DAILY, cached
 from tools.logging_utils import log_tool_error, logger
+from tools.truncate_for_llm import truncate_strings_for_llm
 
 from .tool_schemas import EarningsDateResult
 
@@ -18,13 +19,15 @@ def fetch_earnings_date(ticker: str) -> dict:
         calendar = stock.calendar
 
         if calendar is None or (isinstance(calendar, dict) and not calendar):
-            return EarningsDateResult(
+            out = EarningsDateResult(
                 ticker=ticker,
                 timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 next_earnings_date=None,
                 is_estimated=True,
                 days_until_earnings=None,
             ).model_dump()
+            result, _ = truncate_strings_for_llm(out, tool_name="fetch_earnings_date")
+            return result
 
         # yfinance .calendar returns a dict with 'Earnings Date' key
         # or may have other formats depending on version
@@ -46,13 +49,15 @@ def fetch_earnings_date(ticker: str) -> dict:
                     earnings_date = vals.iloc[0]
 
         if earnings_date is None:
-            return EarningsDateResult(
+            out = EarningsDateResult(
                 ticker=ticker,
                 timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 next_earnings_date=None,
                 is_estimated=True,
                 days_until_earnings=None,
             ).model_dump()
+            result, _ = truncate_strings_for_llm(out, tool_name="fetch_earnings_date")
+            return result
 
         # Normalize to date string
         if hasattr(earnings_date, "strftime"):
@@ -70,13 +75,15 @@ def fetch_earnings_date(ticker: str) -> dict:
         days_until = (earnings_dt - today).days
         days_until = max(days_until, 0)
 
-        return EarningsDateResult(
+        out = EarningsDateResult(
             ticker=ticker,
             timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             next_earnings_date=earnings_date_str,
             is_estimated=True,
             days_until_earnings=days_until,
         ).model_dump()
+        result, _ = truncate_strings_for_llm(out, tool_name="fetch_earnings_date")
+        return result
 
     except Exception as e:
         log_tool_error("fetch_earnings_date", str(e), ticker=ticker)

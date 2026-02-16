@@ -7,10 +7,17 @@ Reddit posts about a stock from r/wallstreetbets, r/stocks.
   query Reddit; or use invalidate_cache(ticker) then run pipeline to refresh all data.
 """
 
+import html
+import re
 import requests
 
 from tools.cache.decorators import TTL_INTRADAY, cached
 from tools.logging_utils import logger
+from tools.truncate_for_llm import (
+    get_tool_truncation_occurred,
+    reset_tool_truncation_occurred,
+    truncate_strings_for_llm,
+)
 
 from .tool_schemas import RedditPostsResult
 
@@ -18,18 +25,30 @@ from .tool_schemas import RedditPostsResult
 USER_AGENT = "MarginCallAgent/1.0 (stock research; DiamondHands)"
 DEFAULT_SUBREDDITS = ["wallstreetbets", "stocks"]
 POSTS_PER_SUB = 3
-# Snippet: max chars for 1-2 line excerpt of post body
-SNIPPET_MAX_CHARS = 220
+# Snippet: max bytes so one post never blows up LLM context (e.g. 70K of \n)
+SNIPPET_MAX_BYTES = 500
+# Cap raw selftext before processing to avoid huge strings
+SELFTEXT_MAX_CHARS = 10_000
 
 
 def _snippet_from_selftext(selftext: str) -> str:
-    """First 1-2 lines of post body, plain text, truncated."""
+    """First 1-2 lines of post body, plain text, truncated by bytes. Sanitizes HTML and newlines."""
     if not selftext or not isinstance(selftext, str):
         return ""
-    text = " ".join(selftext.split())
-    if len(text) <= SNIPPET_MAX_CHARS:
-        return text.strip()
-    return text[: SNIPPET_MAX_CHARS - 3].rstrip() + "..."
+    # Limit input size before any processing
+    if len(selftext) > SELFTEXT_MAX_CHARS:
+        selftext = selftext[:SELFTEXT_MAX_CHARS]
+    # Decode HTML entities (e.g. &#x200B;) and collapse all whitespace to single space
+    text = html.unescape(selftext)
+    text = re.sub(r"\s+", " ", text).strip()
+    if not text:
+        return ""
+    encoded = text.encode("utf-8")
+    if len(encoded) <= SNIPPET_MAX_BYTES:
+        return text
+    # Truncate at byte boundary
+    truncated = encoded[: SNIPPET_MAX_BYTES - 3].decode("utf-8", errors="ignore").rstrip()
+    return truncated + "..."
 
 
 def _mentions_ticker(text: str, ticker: str) -> bool:
@@ -64,6 +83,7 @@ def fetch_reddit(
     """
     if subreddits is None:
         subreddits = DEFAULT_SUBREDDITS
+    reset_tool_truncation_occurred()
     ticker_upper = ticker.upper()
     logger.info("--- Tool: fetch_reddit called for %s (subreddits: %s) ---", ticker_upper, subreddits)
 
@@ -108,6 +128,13 @@ def fetch_reddit(
             if not title:
                 continue
             snippet = _snippet_from_selftext(selftext)
+            # Enforce byte limits on title/url so they never blow up context
+            title_enc = title.encode("utf-8")
+            if len(title_enc) > SNIPPET_MAX_BYTES:
+                title = title_enc[: SNIPPET_MAX_BYTES - 20].decode("utf-8", errors="ignore") + "..."
+            url_enc = url_str.encode("utf-8")
+            if len(url_enc) > 2000:
+                url_str = url_enc[:1997].decode("utf-8", errors="ignore") + "..."
             entry = {
                 "subreddit": f"r/{sub}",
                 "title": title,
@@ -119,7 +146,7 @@ def fetch_reddit(
         by_sub[f"r/{sub}"] = sub_posts
 
     message = "Reddit isn't showing this much love." if not all_posts else None
-    return RedditPostsResult(
+    out = RedditPostsResult(
         status="success",
         ticker=ticker_upper,
         posts=all_posts,
@@ -127,3 +154,6 @@ def fetch_reddit(
         subreddits_queried=[f"r/{s}" for s in subreddits],
         message=message,
     ).model_dump()
+    result, any_truncated = truncate_strings_for_llm(out, tool_name="fetch_reddit")
+    result["truncation_applied"] = get_tool_truncation_occurred() or any_truncated
+    return result

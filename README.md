@@ -156,11 +156,11 @@ Supervisor → AgentTool(sequential pipeline (data → report → present)):
 
 **Credits**
 
-The agentic design, project structure, data schema, infrastructure design and agent/utility code were created by **[Shan Jing](https://www.linkedin.com/in/shanjing/)** (mr.shanjing@gmail.com). Frontend UI code is 100%  done by AI/Cursor.
+The agentic design, project structure, data schema, infrastructure design and the core agent/utility code were created by **[Shan Jing](https://www.linkedin.com/in/shanjing/)** (mr.shanjing@gmail.com). Frontend UI code, most routine code was written with AI assistance or pair programming. The codebase is fully verified and maintained by the author.
 
+**Disclaimer**
+This project is for entertainment and technical demonstration only. It is not investment advice. AI can hallucinate; always verify data independently. 
 
 **License & disclaimer**
 
 This project is open source; use and modify it as you like. It is provided **as-is, without warranty**. The authors are not liable for any use of this software.
-
-Disclaimer: This project is for entertainment and technical demonstration only. It is not investment advice. AI can hallucinate; always verify data independently.

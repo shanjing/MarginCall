@@ -8,6 +8,7 @@ import logging
 import yfinance as yf
 
 from tools.cache.decorators import TTL_INTRADAY, cached
+from tools.truncate_for_llm import truncate_strings_for_llm
 
 from .tool_schemas import VIXResult
 
@@ -36,7 +37,7 @@ def fetch_vix() -> dict:
         hist = vix.history(period="5d")
 
         if hist.empty:
-            return {"status": "error", "error": "Could not fetch VIX data"}
+            return {"status": "error", "error_message": "Could not fetch VIX data"}
 
         current_vix = round(hist["Close"].iloc[-1], 2)
         prev_vix = round(hist["Close"].iloc[-2], 2) if len(hist) > 1 else current_vix
@@ -65,7 +66,7 @@ def fetch_vix() -> dict:
             sentiment = "Panic/Extreme Fear"
             signal = "EXTREME_FEAR"
 
-        return VIXResult(
+        out = VIXResult(
             vix=current_vix,
             previous_close=prev_vix,
             change=change,
@@ -75,7 +76,9 @@ def fetch_vix() -> dict:
             signal=signal,
             interpretation=f"VIX at {current_vix} indicates {level.lower()} volatility ({sentiment})",
         ).model_dump()
+        result, _ = truncate_strings_for_llm(out, tool_name="fetch_vix")
+        return result
 
     except Exception as e:
-        logger.error(f"Error fetching VIX: {e}")
-        return {"status": "error", "error": str(e)}
+        logger.error("Error fetching VIX: %s", e)
+        return {"status": "error", "error_message": str(e)}

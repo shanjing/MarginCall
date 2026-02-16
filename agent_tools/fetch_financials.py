@@ -6,6 +6,7 @@ import yfinance as yf
 
 from tools.cache.decorators import TTL_DAILY, cached
 from tools.logging_utils import log_tool_error, logger
+from tools.truncate_for_llm import truncate_strings_for_llm
 
 from .tool_schemas import FinancialsResult
 
@@ -36,6 +37,10 @@ MARKET_CAP_LARGE = 10e9
 MARKET_CAP_MID = 2e9
 MARKET_CAP_SMALL = 300e6
 
+# Cap long_business_summary so it doesn't bloat LLM context; report condenses to 4 lines anyway.
+LONG_BUSINESS_SUMMARY_MAX_CHARS = 500
+LONG_BUSINESS_SUMMARY_TRUNCATED_SUFFIX = " [truncated]"
+
 
 @cached(data_type="financials", ttl_seconds=TTL_DAILY, ticker_param="ticker")
 def fetch_financials(ticker: str) -> dict:
@@ -62,6 +67,15 @@ def fetch_financials(ticker: str) -> dict:
         for info_key, out_key in INFO_KEYS:
             val = info.get(info_key)
             if val is not None:
+                if out_key == "long_business_summary" and isinstance(val, str):
+                    original_len = len(val)
+                    if original_len > LONG_BUSINESS_SUMMARY_MAX_CHARS:
+                        val = val[:LONG_BUSINESS_SUMMARY_MAX_CHARS].rstrip() + LONG_BUSINESS_SUMMARY_TRUNCATED_SUFFIX
+                        logger.info(
+                            "Truncation: dataset=fetch_financials.long_business_summary original_chars=%s truncated_chars=%s",
+                            original_len,
+                            len(val),
+                        )
                 data[out_key] = val
 
         if not data:
@@ -124,10 +138,11 @@ def fetch_financials(ticker: str) -> dict:
             else:
                 data["market_cap_category"] = "Micro Cap"
 
-        # Return the result in the FinancialsResult schema -SJ
-        return FinancialsResult(
+        out = FinancialsResult(
             ticker=ticker, timestamp=current_time, **data
         ).model_dump(exclude_none=True)
+        result, _ = truncate_strings_for_llm(out, tool_name="fetch_financials")
+        return result
 
     except Exception as e:
         logger.exception("Error fetching financials for %s", ticker)

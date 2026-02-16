@@ -12,6 +12,7 @@ from datetime import datetime
 import numpy as np
 import yfinance as yf
 from tools.cache.decorators import TTL_INTRADAY, cached
+from tools.truncate_for_llm import truncate_strings_for_llm
 
 from .tool_schemas import OptionsAnalysisResult
 
@@ -252,7 +253,7 @@ def fetch_options_analysis(ticker: str) -> dict:
             return {
                 "status": "error",
                 "ticker": ticker.upper(),
-                "error": f"No options data available for {ticker.upper()}",
+                "error_message": f"No options data available for {ticker.upper()}",
             }
 
         # Use nearest N expirations
@@ -284,7 +285,7 @@ def fetch_options_analysis(ticker: str) -> dict:
             return {
                 "status": "error",
                 "ticker": ticker.upper(),
-                "error": f"Could not fetch options chains for {ticker.upper()}",
+                "error_message": f"Could not fetch options chains for {ticker.upper()}",
             }
 
         import pandas as pd
@@ -318,7 +319,7 @@ def fetch_options_analysis(ticker: str) -> dict:
             ". ".join(parts) + "." if parts else "Insufficient options data."
         )
 
-        return OptionsAnalysisResult(
+        out = OptionsAnalysisResult(
             ticker=ticker.upper(),
             timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             expirations_analyzed=near_expirations,
@@ -328,11 +329,13 @@ def fetch_options_analysis(ticker: str) -> dict:
             implied_volatility=iv_metrics,
             interpretation=interpretation,
         ).model_dump()
+        result, _ = truncate_strings_for_llm(out, tool_name="fetch_options_analysis")
+        return result
 
     except Exception as e:
         logger.exception("Error in fetch_options_analysis for %s", ticker)
         return {
             "status": "error",
             "ticker": ticker.upper(),
-            "error": str(e),
+            "error_message": str(e),
         }

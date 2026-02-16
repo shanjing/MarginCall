@@ -18,6 +18,7 @@ from plotly.subplots import make_subplots
 import yfinance as yf
 
 from tools.logging_utils import logger
+from tools.truncate_for_llm import truncate_strings_for_llm
 
 try:
     import pandas_ta as ta
@@ -70,10 +71,11 @@ async def generate_trading_chart(
     )
 
     if ta is None:
-        return {
+        result, _ = truncate_strings_for_llm({
             "status": "Chart generation requires pandas_ta. Install with: pip install pandas-ta-classic",
             "image_base64": None,
-        }
+        })
+        return result
 
     try:
         stock = yf.Ticker(ticker)
@@ -82,10 +84,11 @@ async def generate_trading_chart(
         hist = _flatten_columns(hist)
 
         if hist is None or hist.empty or len(hist) < 20:
-            return {
+            result, _ = truncate_strings_for_llm({
                 "status": f"Insufficient history for {ticker} (need at least 20 trading days). Try a longer timeframe (e.g. '3mo', '1y').",
                 "image_base64": None,
-            }
+            })
+            return result
 
         df = hist[["Open", "High", "Low", "Close", "Volume"]].copy()
         df.columns = [c.lower() for c in df.columns]
@@ -116,10 +119,11 @@ async def generate_trading_chart(
         plot_df = df.dropna(subset=[rsi_col]).copy()
 
         if plot_df.empty:
-            return {
+            result, _ = truncate_strings_for_llm({
                 "status": f"Not enough data to compute indicators for {ticker}. Use a longer timeframe (e.g. '1y' or '2y').",
                 "image_base64": None,
-            }
+            })
+            return result
 
         # TradingView-style layout: Price (+ SMAs) | Volume | RSI | MACD
         fig = make_subplots(
@@ -317,20 +321,22 @@ async def generate_trading_chart(
                 )
                 await tool_context.save_artifact(png_filename, png_part)
                 # Return status-only; fetch_technicals loads artifact for cache
-                return {
+                result, _ = truncate_strings_for_llm({
                     "status": (
                         f"Chart generated for {ticker}. "
                         f"Inline: {png_filename}; Interactive: {html_filename} (Artifacts panel)"
                     ),
-                }
+                })
+                return result
             except Exception as img_err:
                 logger.warning("PNG export failed (install kaleido): %s", img_err)
-                return {
+                result, _ = truncate_strings_for_llm({
                     "status": (
                         f"Chart saved as **{html_filename}** (PNG failed). "
                         "View in Artifacts panel."
                     ),
-                }
+                })
+                return result
 
         # Fallback: no ADK context (e.g. CLI)—save to .tmp and return base64 for cache
         html_path = _chart_dir / html_filename
@@ -340,16 +346,22 @@ async def generate_trading_chart(
         try:
             png_bytes = fig.to_image(format="png", width=1200, height=900, scale=2)
             image_b64 = base64.b64encode(png_bytes).decode("ascii")
-            return {
+            result, _ = truncate_strings_for_llm({
                 "status": f"Chart saved to {html_filename} in .tmp. PNG via /api/charts",
                 "image_base64": image_b64,
-            }
+            })
+            return result
         except Exception as img_err:
             logger.warning("Could not generate PNG (install kaleido): %s", img_err)
-            return {
+            result, _ = truncate_strings_for_llm({
                 "status": f"Chart saved to **{html_filename}** in .tmp (PNG failed)",
-            }
+            })
+            return result
 
     except Exception as e:
         logger.exception("Error generating chart for %s", ticker)
-        return {"status": f"Error generating chart for {ticker}: {e!s}", "image_base64": None}
+        result, _ = truncate_strings_for_llm({
+            "status": f"Error generating chart for {ticker}: {e!s}",
+            "image_base64": None,
+        })
+        return result

@@ -250,3 +250,9 @@ class StockReport(BaseModel):
         default=None,
         description="Character and film, e.g. 'Sam Rogers (Margin Call)' or 'Jordan Belfort (Wolf of Wall Street)'.",
     )
+
+    # Shown when any source content was truncated (reddit, news, etc.)
+    content_disclaimer: str | None = Field(
+        default=None,
+        description="If reddit.truncation_applied is true or news/source content contains 'value exceeds size limit' or 'response truncated', set to the standard truncation disclaimer; otherwise null.",
+    )

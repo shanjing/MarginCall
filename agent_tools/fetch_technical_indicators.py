@@ -6,6 +6,7 @@ import yfinance as yf
 
 from tools.cache.decorators import TTL_DAILY, cached
 from tools.logging_utils import logger
+from tools.truncate_for_llm import truncate_strings_for_llm
 
 from .tool_schemas import MACDValues, TechnicalIndicatorsResult
 
@@ -73,8 +74,7 @@ def fetch_technical_indicators(ticker: str) -> dict:
             rsi_val = 100.0
 
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        return TechnicalIndicatorsResult(
+        out = TechnicalIndicatorsResult(
             ticker=ticker,
             timestamp=current_time,
             sma_20=round(float(sma_20), 4),
@@ -86,10 +86,12 @@ def fetch_technical_indicators(ticker: str) -> dict:
             ),
             rsi_14=round(float(rsi_val), 2),
         ).model_dump()
+        result, _ = truncate_strings_for_llm(out, tool_name="fetch_technical_indicators")
+        return result
 
     except Exception as e:
         logger.exception("Error fetching technical indicators for %s", ticker)
         return {
             "status": "error",
-            "error_message": f"Error fetching technical indicators: {str(e)}",
+            "error_message": str(e),
         }
