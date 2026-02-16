@@ -17,7 +17,6 @@ if [[ ! -f "$ACTIVATE" ]]; then
 fi
 
 if grep -q "$SENTINEL" "$ACTIVATE" 2>/dev/null; then
-  echo "Banner already installed in .venv/bin/activate."
   exit 0
 fi
 
@@ -29,5 +28,3 @@ fi
   echo "  . \"\$(dirname \"\$VIRTUAL_ENV\")/scripts/margincall_banner.sh\""
   echo "fi"
 } >> "$ACTIVATE"
-
-echo "Installed MarginCall banner in .venv/bin/activate. Next time you run 'source .venv/bin/activate' you will see the summary and chart."

@@ -260,7 +260,7 @@ if check_venv && check_env_file && check_api_key && check_model_configured; then
   read -r -p "Start the agent now? (y/n): " start_choice
   case "$start_choice" in
     [yY]|[yY][eE][sS]) start_agent ;;
-    *) printf "${D}Setup is complete. See README.md for how to start the agent or just run setup.sh again to start it.\nTo activate the virtual environment (shows MarginCall summary and chart):\nsource .venv/bin/activate${N}\n" ;;
+    *) printf "${D}Setup is complete. See README.md for how to start the agent or just run setup.sh again to start it.\nTo activate the virtual environment :\nsource .venv/bin/activate${N}\n" ;;
   esac
   exit 0
 fi
@@ -494,6 +494,6 @@ if check_cloud_configured || check_local_configured; then
   read -r -p "Start the agent now? (y/n): " start_choice
   case "$start_choice" in
     [yY]|[yY][eE][sS]) start_agent ;;
-    *) printf "${D}Setup is complete. See README.md for how to start the agent or run this setup.sh to start it.${N}\n" ;;
+    *) printf "${D}Setup is complete. See README.md for how to start the agent or just run setup.sh again to start it.\nTo activate the virtual environment :\nsource .venv/bin/activate${N}\n" ;;
   esac
 fi
