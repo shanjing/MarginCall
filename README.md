@@ -28,7 +28,7 @@ adk web
 # Open a browser to localhost:8000
 ```
 
-4. To run in CLI for debugging or text-based chat:
+To run in CLI for debugging or text-based chat:
 
 ```
 cd MarginCall; ./setup.sh (select 'n' at Start the agent now? (y/n): )
@@ -40,7 +40,7 @@ python -m main run -i "what is AMZN's option put/call ratio right now?"
 python -m main run -i "tell me about GOOGL" -d -t
 ```
 
-5. To run in a docker container
+To run in a docker container
 
 ```
 (run setup.sh and create .env file with a valid API key)
