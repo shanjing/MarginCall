@@ -8,6 +8,7 @@ from typing import Any
 import requests
 
 from tools.cache.decorators import TTL_INTRADAY, cached
+from tools.truncate_for_llm import truncate_strings_for_llm
 
 from .tool_schemas import CNNFearGreedResult
 
@@ -47,11 +48,13 @@ def fetch_cnn_greedy() -> dict:
 
             score, rating = _parse_fear_greed(data)
             if score is not None:
-                return CNNFearGreedResult(
+                out = CNNFearGreedResult(
                     score=score,
                     rating=rating,
                     interpretation=f"CNN Fear & Greed Index: {score} ({rating})",
                 ).model_dump()
+                result, _ = truncate_strings_for_llm(out, tool_name="fetch_cnn_greedy")
+                return result
         except requests.RequestException as e:
             last_error = str(e)
             logger.warning(f"CNN API error for {url}: {e}")
@@ -64,7 +67,7 @@ def fetch_cnn_greedy() -> dict:
     # All endpoints failed
     return {
         "status": "error",
-        "error": f"Failed to fetch CNN Fear & Greed data: {last_error}",
+        "error_message": f"Failed to fetch CNN Fear & Greed data: {last_error}",
     }
 
 

@@ -1,11 +1,16 @@
 """
 Search tools for the MarginCall MCP server (e.g. Brave web search).
 This is for non-gemini models to search the web.
+Uses Pydantic schemas to cap result size; final string is truncated as last checkpoint.
 """
 
 import os
 
 import requests
+
+from tools.truncate_for_llm import MAX_RESPONSE_STRING_BYTES, truncate_string_to_bytes
+
+from .tool_schemas import BraveSearchEntry, BraveSearchResult
 
 BRAVE_WEB_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search"
 
@@ -33,14 +38,30 @@ def brave_search(query: str) -> str:
     except ValueError as e:
         return f"Error parsing Brave Search response: {e}"
 
-    results = data.get("web", {}).get("results", [])
-    if not results:
+    raw_results = data.get("web", {}).get("results", [])
+    if not raw_results:
         return "No results found."
 
+    # Build validated entries (Pydantic truncates each field)
+    entries = [
+        BraveSearchEntry(
+            title=r.get("title", "") or "",
+            url=r.get("url", "") or "",
+            description=r.get("description", "") or "",
+        )
+        for r in raw_results
+    ]
+    validated = BraveSearchResult(results=entries)
+
     lines = []
-    for i, r in enumerate(results, 1):
-        title = r.get("title", "")
-        url = r.get("url", "")
-        desc = r.get("description", "")
-        lines.append(f"{i}. {title}\n   {url}\n   {desc}")
-    return "\n\n".join(lines)
+    for i, e in enumerate(validated.results, 1):
+        lines.append(f"{i}. {e.title}\n   {e.url}\n   {e.description}")
+    out = "\n\n".join(lines)
+
+    # Last checkpoint before injecting into LLM: cap total response length
+    return truncate_string_to_bytes(
+        out,
+        MAX_RESPONSE_STRING_BYTES,
+        suffix="\n\n(response truncated)",
+        context="brave_search.response",
+    )

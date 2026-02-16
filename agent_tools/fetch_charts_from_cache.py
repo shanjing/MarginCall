@@ -13,6 +13,7 @@ from datetime import date
 from tools.cache import get_cache
 from tools.cache.base import CacheBackend
 from tools.logging_utils import logger
+from tools.truncate_for_llm import truncate_strings_for_llm
 
 
 async def fetch_charts_from_cache(ticker: str) -> dict:
@@ -37,10 +38,11 @@ async def fetch_charts_from_cache(ticker: str) -> dict:
     data = await cache.get_json(cache_key)
 
     if not data or "charts" not in data:
-        return {
+        result, _ = truncate_strings_for_llm({
             "status": f"No chart data in cache for {ticker_upper}. Run stock analysis first.",
             "charts": {},
-        }
+        })
+        return result
 
     charts = data.get("charts", {})
     out = {}
@@ -52,12 +54,14 @@ async def fetch_charts_from_cache(ticker: str) -> dict:
             }
 
     if not out:
-        return {
+        result, _ = truncate_strings_for_llm({
             "status": f"Charts in cache for {ticker_upper} have no image_base64.",
             "charts": {},
-        }
+        })
+        return result
 
-    return {
+    result, _ = truncate_strings_for_llm({
         "status": f"Found {len(out)} chart(s) for {ticker_upper} in local cache.",
         "charts": out,
-    }
+    })
+    return result

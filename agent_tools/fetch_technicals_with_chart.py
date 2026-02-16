@@ -15,6 +15,7 @@ from datetime import date, datetime
 
 from tools.cache.decorators import TTL_DAILY
 from tools.logging_utils import logger
+from tools.truncate_for_llm import truncate_strings_for_llm
 
 from .fetch_technical_indicators import fetch_technical_indicators
 from .generate_trading_chart import generate_trading_chart
@@ -224,4 +225,5 @@ async def fetch_technicals_with_chart(ticker: str, tool_context: object | None =
     to_return = dict(validated)
     if "charts" in to_return:
         to_return["charts"] = _strip_chart_base64(to_return["charts"])
-    return to_return
+    result, _ = truncate_strings_for_llm(to_return, tool_name="fetch_technicals_with_chart")
+    return result

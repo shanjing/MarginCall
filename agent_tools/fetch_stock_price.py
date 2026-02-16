@@ -4,6 +4,7 @@ import yfinance as yf
 
 from tools.cache.decorators import TTL_REALTIME, cached
 from tools.logging_utils import log_tool_error, logger
+from tools.truncate_for_llm import truncate_strings_for_llm
 
 from .tool_schemas import StockPriceResult
 
@@ -26,17 +27,17 @@ def fetch_stock_price(ticker: str) -> dict:
             }
 
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        # Return the result in the StockPriceResult schema -SJ
-        # model_dump() is used to convert the Pydantic model to a dictionary
-        return StockPriceResult(
+        out = StockPriceResult(
             ticker=ticker,
             price=current_price,
             timestamp=current_time,
         ).model_dump()
+        result, _ = truncate_strings_for_llm(out, tool_name="fetch_stock_price")
+        return result
 
     except Exception as e:
         log_tool_error("fetch_stock_price", str(e), ticker=ticker)
         return {
             "status": "error",
-            "error_message": f"Error fetching stock data: {str(e)}",
+            "error_message": str(e),
         }

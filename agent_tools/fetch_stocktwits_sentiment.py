@@ -7,6 +7,7 @@ import logging
 import requests
 
 from tools.cache.decorators import TTL_INTRADAY, cached
+from tools.truncate_for_llm import truncate_strings_for_llm
 
 from .tool_schemas import StockTwitsSentimentResult
 
@@ -42,14 +43,14 @@ def fetch_stocktwits_sentiment(ticker: str) -> dict:
         # Check for errors in response
         if data.get("response", {}).get("status") != 200:
             error_msg = data.get("errors", [{"message": "Unknown error"}])[0].get(
-                "message"
+                "message", "Unknown error"
             )
-            return {"status": "error", "ticker": ticker.upper(), "error": error_msg}
+            return {"status": "error", "ticker": ticker.upper(), "error_message": error_msg}
 
         messages = data.get("messages", [])
 
         if not messages:
-            return StockTwitsSentimentResult(
+            out = StockTwitsSentimentResult(
                 ticker=ticker.upper(),
                 message_count=0,
                 bullish=0,
@@ -59,6 +60,8 @@ def fetch_stocktwits_sentiment(ticker: str) -> dict:
                 signal="NO_DATA",
                 interpretation=f"No recent StockTwits messages found for {ticker.upper()}",
             ).model_dump()
+            result, _ = truncate_strings_for_llm(out, tool_name="fetch_stocktwits_sentiment")
+            return result
 
         # Count sentiment from messages
         bullish = 0
@@ -106,7 +109,7 @@ def fetch_stocktwits_sentiment(ticker: str) -> dict:
         # Get symbol info
         symbol_info = data.get("symbol", {})
 
-        return StockTwitsSentimentResult(
+        out = StockTwitsSentimentResult(
             ticker=ticker.upper(),
             title=symbol_info.get("title", ticker.upper()),
             message_count=len(messages),
@@ -121,16 +124,18 @@ def fetch_stocktwits_sentiment(ticker: str) -> dict:
                 f"({bullish} bullish, {bearish} bearish out of {len(messages)} messages)"
             ),
         ).model_dump()
+        result, _ = truncate_strings_for_llm(out, tool_name="fetch_stocktwits_sentiment")
+        return result
 
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 404:
             return {
                 "status": "error",
                 "ticker": ticker.upper(),
-                "error": f"Symbol {ticker.upper()} not found on StockTwits",
+                "error_message": f"Symbol {ticker.upper()} not found on StockTwits",
             }
-        logger.error(f"HTTP error fetching StockTwits sentiment: {e}")
-        return {"status": "error", "ticker": ticker.upper(), "error": str(e)}
+        logger.error("HTTP error fetching StockTwits sentiment: %s", e)
+        return {"status": "error", "ticker": ticker.upper(), "error_message": str(e)}
     except Exception as e:
-        logger.error(f"Error fetching StockTwits sentiment: {e}")
-        return {"status": "error", "ticker": ticker.upper(), "error": str(e)}
+        logger.error("Error fetching StockTwits sentiment: %s", e)
+        return {"status": "error", "ticker": ticker.upper(), "error_message": str(e)}

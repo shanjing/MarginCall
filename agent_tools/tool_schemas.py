@@ -12,7 +12,9 @@ Coupling them leads to brittle changes — see misc/adk/use_tools_with_schema.md
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from tools.truncate_for_llm import MAX_STRING_BYTES, truncate_string_to_bytes
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -292,7 +294,7 @@ class InvalidateCacheResult(BaseModel):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# fetch_reddit
+# fetch_reddit (with Pydantic size checks to prevent LLM context bloat)
 # ─────────────────────────────────────────────────────────────────────────────
 class RedditPostEntry(BaseModel):
     """Single Reddit post (title, link, 1-2 line excerpt)."""
@@ -304,6 +306,34 @@ class RedditPostEntry(BaseModel):
         default="",
         description="1-2 line excerpt of the post body (plain text). Empty if link-only.",
     )
+
+    @field_validator("subreddit", mode="before")
+    @classmethod
+    def truncate_subreddit(cls, v: str) -> str:
+        if isinstance(v, str):
+            return truncate_string_to_bytes(v, MAX_STRING_BYTES, context="RedditPostEntry.subreddit")
+        return v
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def truncate_title(cls, v: str) -> str:
+        if isinstance(v, str):
+            return truncate_string_to_bytes(v, MAX_STRING_BYTES, context="RedditPostEntry.title")
+        return v
+
+    @field_validator("url", mode="before")
+    @classmethod
+    def truncate_url(cls, v: str) -> str:
+        if isinstance(v, str):
+            return truncate_string_to_bytes(v, MAX_STRING_BYTES, context="RedditPostEntry.url")
+        return v
+
+    @field_validator("snippet", mode="before")
+    @classmethod
+    def truncate_snippet(cls, v: str) -> str:
+        if isinstance(v, str):
+            return truncate_string_to_bytes(v, MAX_STRING_BYTES, context="RedditPostEntry.snippet")
+        return v
 
 
 class RedditPostsResult(BaseModel):
@@ -328,6 +358,13 @@ class RedditPostsResult(BaseModel):
         description="Set to 'Reddit isn't showing this much love.' when no ticker-related posts found.",
     )
 
+    @field_validator("message", mode="before")
+    @classmethod
+    def truncate_message(cls, v: str | None) -> str | None:
+        if isinstance(v, str):
+            return truncate_string_to_bytes(v, MAX_STRING_BYTES, context="RedditPostsResult.message")
+        return v
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # fetch_earnings_date
@@ -351,6 +388,60 @@ class EarningsDateResult(BaseModel):
         ge=0,
         description="Days from today until next earnings. None if unavailable.",
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# brave_search / news search (with Pydantic size checks to prevent LLM bloat)
+# ─────────────────────────────────────────────────────────────────────────────
+# Per-field limit for search results (title, url, description)
+BRAVE_SEARCH_FIELD_MAX_BYTES = 2000
+# Max number of results to include in the formatted string
+BRAVE_SEARCH_MAX_RESULTS = 10
+
+
+class BraveSearchEntry(BaseModel):
+    """Single Brave web search result (validated size for LLM safety)."""
+
+    title: str = Field(default="", description="Result title.")
+    url: str = Field(default="", description="Result URL.")
+    description: str = Field(default="", description="Result description/snippet.")
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def truncate_title(cls, v: str) -> str:
+        if isinstance(v, str):
+            return truncate_string_to_bytes(v, BRAVE_SEARCH_FIELD_MAX_BYTES, context="BraveSearchEntry.title")
+        return v or ""
+
+    @field_validator("url", mode="before")
+    @classmethod
+    def truncate_url(cls, v: str) -> str:
+        if isinstance(v, str):
+            return truncate_string_to_bytes(v, BRAVE_SEARCH_FIELD_MAX_BYTES, context="BraveSearchEntry.url")
+        return v or ""
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def truncate_description(cls, v: str) -> str:
+        if isinstance(v, str):
+            return truncate_string_to_bytes(v, BRAVE_SEARCH_FIELD_MAX_BYTES, context="BraveSearchEntry.description")
+        return v or ""
+
+
+class BraveSearchResult(BaseModel):
+    """Validated list of Brave search entries (capped count and field sizes)."""
+
+    results: list[BraveSearchEntry] = Field(
+        default_factory=list,
+        description="Search results with truncated strings.",
+    )
+
+    @field_validator("results", mode="before")
+    @classmethod
+    def cap_results(cls, v: list) -> list:
+        if isinstance(v, list) and len(v) > BRAVE_SEARCH_MAX_RESULTS:
+            return list(v[:BRAVE_SEARCH_MAX_RESULTS])
+        return v or []
 
 
 # ─────────────────────────────────────────────────────────────────────────────

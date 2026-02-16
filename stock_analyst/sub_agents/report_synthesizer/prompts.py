@@ -183,8 +183,8 @@ INSTRUCTION = """
     - sentiment: (all 4 indicators + pcr_volume + pcr_signal + overall + summary)
     - options_analysis: (all options fields — pcr, max pain, unusual, IV, HV, rank)
     - news_summary: 1-2 sentences summarizing news
-    - news_articles: copy ALL news articles (title, url, snippet, date)
-    - reddit_posts: from session.state.stock_data.ticker.reddit.posts — only posts that mention the ticker (subreddit, title, url, snippet). If reddit is missing or reddit.posts is empty (or reddit.message is "Reddit isn't showing this much love."), use reddit_posts: [] and set reddit_note to "Reddit isn't showing this much love."
+    - news_articles: Include at most 3 most relevant articles (title, url, snippet in one short sentence, date).
+    - reddit_posts: Include at most 3 posts that mention the ticker (subreddit, title, url, snippet in one short sentence). If reddit is missing or reddit.posts is empty (or reddit.message is "Reddit isn't showing this much love."), use reddit_posts: [] and set reddit_note to "Reddit isn't showing this much love."
     - next_earnings_date: from session.state.stock_data.ticker.earnings_date.next_earnings_date (YYYY-MM-DD or null)
     - days_until_earnings: from session.state.stock_data.ticker.earnings_date.days_until_earnings (int or null)
     - rating.recommendation: "Buy", "Sell", or "Hold" (MUST use 80/20 rule!)
@@ -193,6 +193,26 @@ INSTRUCTION = """
     - conclusion: 2-3 sentence investment thesis
     - movie_quote_line: One short memorable quote (1-2 sentences) from a character in Margin Call, The Wolf of Wall Street, The Big Short, or House of Cards. Make it fit the report tone (bullish/bearish/neutral). Use null if you prefer not to include one.
     - movie_quote_attribution: The character name and film in parentheses, e.g. "Sam Rogers (Margin Call)", "Jordan Belfort (Wolf of Wall Street)", "Mark Baum (The Big Short)", "Frank Underwood (House of Cards)". Must match the quote. Use null if movie_quote_line is null.
+
+    ═══════════════════════════════════════════════════════════════════════════
+    CONTENT TRUNCATION DISCLAIMER (when any source was truncated):
+    ═══════════════════════════════════════════════════════════════════════════
+    If session.state.stock_data.ticker.reddit.truncation_applied is true, OR
+    session.state.stock_data.ticker.news (or stock_news) contains truncation_applied or
+    the text "value exceeds size limit" or "response truncated", then set content_disclaimer
+    to this exact paragraph (so it appears in the report):
+    "The content is reduced by AI from its original size, please follow the link to check the original content. This may also affect the accuracy of the analysis, remember this is for entertainment only."
+    Otherwise set content_disclaimer to null.
+
+    ═══════════════════════════════════════════════════════════════════════════
+    OUTPUT LENGTH (CRITICAL - AVOID TRUNCATION):
+    ═══════════════════════════════════════════════════════════════════════════
+    The full JSON must fit in a single response. If it is truncated, validation fails.
+    - Keep ALL string fields short: 1-2 sentences for summaries/snippets, 2-3 for conclusion.
+    - news_articles: Include at most 3 articles. Each snippet: one short sentence only.
+    - reddit_posts: Include at most 3 posts. Each snippet: one short sentence or empty.
+    - company_intro: One short paragraph (max 4 lines).
+    - Do not repeat raw data; summarize. Omit or shorten optional fields (e.g. movie_quote_line) if needed to stay within limits.
 
     Output ONLY the JSON. No markdown, no commentary, no explanations.
     """
