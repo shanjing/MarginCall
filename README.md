@@ -46,7 +46,7 @@ git clone https://github.com/shanjing/MarginCall
 cd MarginCall
 claude
 >/context
-> tell me about this project, what it does, the structure, the requirements and how to run it
+> tell me about this project
 ...
 ```
 
@@ -54,51 +54,34 @@ claude
 
 **Requirements to run the agent**
 
-1. Must be in the virtual environment (see Initial Setup below)
-2. Must have a valid `GOOGLE_API_KEY` defined in the repo root `.env` file.
-   - Use env.example as a template to create your own .env file;
-   - To create your Google API key, go to [Google AI Studio](https://aistudio.google.com/api-keys).)
+Must have a valid `GOOGLE_API_KEY`,to create your Google API key, go to [Google AI Studio](https://aistudio.google.com/api-keys).)
 
 The agent is tested to work with gemini-2.5-flash, gemini-3-pro-preview.
 It uses ADK's google_search tool and auto switches to brave.com search via MCP for non-gemini cloud based models.
-Local LLM models such as Qwen3 seems to have issues with tool calling.
+
+Local LLM models must support tools.
 
 
-**Initial setup**
-Create a virtual environment and install required packages
+
+**To start the agent with full UI support**
 ```
-python -m venv .venv
-pip install -r reqiurements.txt
+git clone https://github.com/shanjing/MarginCall.git
+cd MarginCall; ./setup.sh
 ```
 
-**Models and API keys**
-- Cloud based models such as gemini-* is recommended for extensive tools support and google internal tools (searh etc).
-- Must have API keys to use cloud based models (see env.example file)
-- Local LLM (ollama) models must support tools, qwen3-coder-next.
-
-
-**To start the agent**
-(must set API key in .env file, see env.example as a template)
-1. Run full UI version (the quickest way to see the full features)
+**To manually start the headless agent with ADK**
 ```
-cd MarginCall; source .venv/bin/activate
-uvicorn server:app --host 0.0.0.0 --port 8080
-
-#open browser to localhost:8080
-```
-2. Start ADK UI
-```
+cd MarginCall; ./setup.sh (select 'n' at Start the agent now? (y/n): )
 adk web
-# a. Open browser to localhost:8000
-# b. On the left side of the screen, select "stock_analyst"
-# c. In the chat box, start talking to the agent "give me a real-time research on AAPL"
+# Open a browser to localhost:8000
 ```
 
 4. To run in CLI for debugging or text-based chat:
 ```
+cd MarginCall; ./setup.sh (select 'n' at Start the agent now? (y/n): )
 python -m main run --help
-python -m main run -i "tell me about GOOGL"
 python -m main run -i "what is AMZN's next earning report date?"
+python -m main run -i "tell me about GOOGL"
 python -m main run -i "how crazy is the market today?"
 python -m main run -i "what is AMZN's option put/call ratio right now?"
 python -m main run -i "tell me about GOOGL" -d -t
@@ -106,7 +89,7 @@ python -m main run -i "tell me about GOOGL" -d -t
 
 5. To run in a docker container
 ```
-(create .env file with API keys, see env.example)
+(run setup.sh and create .env file with a valid API key)
 docker build -t margincall:latest .
 
 # Security check to ensure there is no api key leaking in the image

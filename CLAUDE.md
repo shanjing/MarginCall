@@ -13,6 +13,12 @@ Multi-agent stock analyst on **Google ADK** (Python). Supervisor → sequential 
 ## Quick Commands
 
 ```bash
+cd ../MarginCall ; ./setup.sh 
+```
+
+## Other ways to start the agent for developers
+
+```bash
 cd ../MarginCall && source .venv/bin/activate && cd MarginCall
 uvicorn server:app --host 0.0.0.0 --port 8080
 adk web                    # dev UI, localhost:8000
