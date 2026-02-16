@@ -7,7 +7,6 @@ Usage: uvicorn server:app --host 0.0.0.0 --port $PORT
 
 from __future__ import annotations
 
-import agentops
 import asyncio
 import json
 import logging
@@ -30,15 +29,6 @@ SESSION_SERVICE_URI = os.environ.get(
 ALLOWED_ORIGINS = os.environ.get(
     "ALLOWED_ORIGINS", "http://localhost,http://localhost:8080,*"
 ).split(",")
-
-# Initialize AgentOps for observability 
-# https://google.github.io/adk-docs/integrations/agentops/#how-agentops-instruments-adk
-agentops.init(
-    api_key=os.getenv("AGENTOPS_API_KEY"), # Your AgentOps API Key
-    trace_name="margincall-ui-adk-app-trace"  # Optional: A name for your trace
-    # auto_start_session=True is the default.
-    # Set to False if you want to manually control session start/end.
-)
 
 app = get_fast_api_app(
     agents_dir=AGENT_DIR,
