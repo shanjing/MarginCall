@@ -12,6 +12,8 @@ MarginCall is a multi-agent research AI tool built on Google ADK. It orchestrate
 **Requirements to run the agent**
 
 Must have a valid `GOOGLE_API_KEY` or other cloud API key (run ./setup.sh to load the API keys)
+Current setup supports MacOS and Linux, Windows setup is W.I.P.
+
 
 **To start the agent (the quickest way to use it the first time)**
 
