@@ -97,6 +97,69 @@ drain_stdin() {
   while read -r -t 1 2>/dev/null; do :; done
 }
 
+# Validate an API key by making a lightweight HTTP call to the provider.
+# Usage: validate_api_key <key_type> <key_value>
+# Returns 0 on success, 1 on failure. Prints error message on failure.
+validate_api_key() {
+  local key_type="$1"
+  local key_value="$2"
+  local http_code
+
+  case "$key_type" in
+    google)
+      http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+        "https://generativelanguage.googleapis.com/v1beta/models?key=${key_value}")
+      ;;
+    openai)
+      http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+        -H "Authorization: Bearer ${key_value}" \
+        "https://api.openai.com/v1/models")
+      ;;
+    anthropic)
+      http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
+        -X POST \
+        -H "x-api-key: ${key_value}" \
+        -H "content-type: application/json" \
+        -H "anthropic-version: 2023-06-01" \
+        -d '{"model":"claude-haiku-4-5-20251001","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}' \
+        "https://api.anthropic.com/v1/messages")
+      ;;
+    ollama)
+      # Local model — no key to validate
+      return 0
+      ;;
+    *)
+      printf "${D}  Skipping validation (unknown provider: %s)${N}\n" "$key_type"
+      return 0
+      ;;
+  esac
+
+  # curl returns 000 on network error / timeout
+  if [[ "$http_code" == "000" ]]; then
+    printf "${R}  ✗ API key validation failed: could not reach the API (network error or timeout).${N}\n"
+    return 1
+  fi
+
+  # For Anthropic, any non-401 means the key itself is accepted
+  if [[ "$key_type" == "anthropic" ]]; then
+    if [[ "$http_code" == "401" ]]; then
+      printf "${R}  ✗ API key validation failed (HTTP %s). The key may be invalid, expired, or have no permissions.${N}\n" "$http_code"
+      return 1
+    fi
+    printf "${G}  ✓ API key validated${N}\n"
+    return 0
+  fi
+
+  # For Google and OpenAI, 200 = valid
+  if [[ "$http_code" == "200" ]]; then
+    printf "${G}  ✓ API key validated${N}\n"
+    return 0
+  fi
+
+  printf "${R}  ✗ API key validation failed (HTTP %s). The key may be invalid, expired, or have no permissions.${N}\n" "$http_code"
+  return 1
+}
+
 run_main_test() {
   (source .venv/bin/activate && python -m main run -i "what is GOOGL's next earning release date")
 }
@@ -188,11 +251,26 @@ run_model_selection() {
             echo "Warning: never share the API key, the wallet won't like it."
             read -r -p "Create your Google API key and paste it to continue, or press 'q' to quit: " API_KEY_VAL
             case "$API_KEY_VAL" in [qQ]) echo "Quitting."; exit 1 ;; esac
-            [[ -n "$API_KEY_VAL" ]] && break
+            if [[ -n "$API_KEY_VAL" ]]; then
+              if validate_api_key "$API_KEY_TYPE" "$API_KEY_VAL"; then
+                break
+              else
+                echo "Please try again."
+                API_KEY_VAL=""
+              fi
+            fi
             ;;
         esac
-        [[ -n "$API_KEY_VAL" ]] && break
-        echo "API key cannot be empty."
+        if [[ -n "$API_KEY_VAL" ]]; then
+          if validate_api_key "$API_KEY_TYPE" "$API_KEY_VAL"; then
+            break
+          else
+            echo "Please try again."
+            API_KEY_VAL=""
+          fi
+        else
+          echo "API key cannot be empty."
+        fi
       done
     else
       echo "Which API key will you use for this model?"
@@ -206,9 +284,20 @@ run_model_selection() {
         3) API_KEY_TYPE=anthropic ;;
         *) echo "Invalid choice."; exit 1 ;;
       esac
-      read -r -p "Enter your $API_KEY_TYPE API key: " API_KEY_VAL
+      while true; do
+        read -r -p "Enter your $API_KEY_TYPE API key: " API_KEY_VAL
+        if [[ -z "$API_KEY_VAL" ]]; then
+          echo "API key cannot be empty for cloud models."
+          continue
+        fi
+        if validate_api_key "$API_KEY_TYPE" "$API_KEY_VAL"; then
+          break
+        else
+          echo "Please try again."
+          API_KEY_VAL=""
+        fi
+      done
     fi
-    [[ -z "$API_KEY_VAL" ]] && { echo "API key cannot be empty for cloud models."; exit 1; }
   else
     API_KEY_VAL="ollama"
   fi
@@ -402,13 +491,28 @@ if [[ "$MODE" == "cloud" ]]; then
         while true; do
           read -r -p "Create your Google API key and paste it to continue, or press 'q' to quit: " API_KEY_VAL
           case "$API_KEY_VAL" in [qQ]) echo "Quitting."; exit 1 ;; esac
-          [[ -n "$API_KEY_VAL" ]] && break
+          if [[ -n "$API_KEY_VAL" ]]; then
+            if validate_api_key "$API_KEY_TYPE" "$API_KEY_VAL"; then
+              break
+            else
+              echo "Please try again."
+              API_KEY_VAL=""
+            fi
+          fi
         done
-        break
+        [[ -n "$API_KEY_VAL" ]] && break
         ;;
       esac
-      [[ -n "$API_KEY_VAL" ]] && break
-      echo "API key cannot be empty."
+      if [[ -n "$API_KEY_VAL" ]]; then
+        if validate_api_key "$API_KEY_TYPE" "$API_KEY_VAL"; then
+          break
+        else
+          echo "Please try again."
+          API_KEY_VAL=""
+        fi
+      else
+        echo "API key cannot be empty."
+      fi
     done
   else
     echo "Which API key will you use for this model?"
@@ -422,9 +526,20 @@ if [[ "$MODE" == "cloud" ]]; then
       3) API_KEY_TYPE=anthropic ;;
       *) echo "Invalid choice."; exit 1 ;;
     esac
-    read -r -p "Enter your $API_KEY_TYPE API key: " API_KEY_VAL
+    while true; do
+      read -r -p "Enter your $API_KEY_TYPE API key: " API_KEY_VAL
+      if [[ -z "$API_KEY_VAL" ]]; then
+        echo "API key cannot be empty for cloud models."
+        continue
+      fi
+      if validate_api_key "$API_KEY_TYPE" "$API_KEY_VAL"; then
+        break
+      else
+        echo "Please try again."
+        API_KEY_VAL=""
+      fi
+    done
   fi
-  [[ -z "$API_KEY_VAL" ]] && { echo "API key cannot be empty for cloud models."; exit 1; }
 else
   API_KEY_TYPE=ollama
   API_KEY_VAL="ollama"

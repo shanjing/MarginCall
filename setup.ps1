@@ -11,6 +11,72 @@ function Drain-ConsoleInput {
     }
 }
 
+# Validate an API key by making a lightweight HTTP call to the provider.
+# Returns $true on success, $false on failure.
+function Test-ApiKey {
+    param(
+        [string]$KeyType,
+        [string]$KeyValue
+    )
+
+    try {
+        switch ($KeyType) {
+            "google" {
+                $response = Invoke-WebRequest -Uri "https://generativelanguage.googleapis.com/v1beta/models?key=$KeyValue" `
+                    -Method Get -TimeoutSec 10 -UseBasicParsing -ErrorAction Stop
+                Write-Host "  ✓ API key validated" -ForegroundColor Green
+                return $true
+            }
+            "openai" {
+                $headers = @{ "Authorization" = "Bearer $KeyValue" }
+                $response = Invoke-WebRequest -Uri "https://api.openai.com/v1/models" `
+                    -Method Get -Headers $headers -TimeoutSec 10 -UseBasicParsing -ErrorAction Stop
+                Write-Host "  ✓ API key validated" -ForegroundColor Green
+                return $true
+            }
+            "anthropic" {
+                $headers = @{
+                    "x-api-key" = $KeyValue
+                    "content-type" = "application/json"
+                    "anthropic-version" = "2023-06-01"
+                }
+                $body = '{"model":"claude-haiku-4-5-20251001","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}'
+                try {
+                    $response = Invoke-WebRequest -Uri "https://api.anthropic.com/v1/messages" `
+                        -Method Post -Headers $headers -Body $body -TimeoutSec 10 -UseBasicParsing -ErrorAction Stop
+                } catch {
+                    $statusCode = $_.Exception.Response.StatusCode.value__
+                    if ($statusCode -eq 401) {
+                        Write-Host "  ✗ API key validation failed (HTTP 401). The key may be invalid, expired, or have no permissions." -ForegroundColor Red
+                        return $false
+                    }
+                    # Non-401 error means the key itself is accepted (e.g. 400 bad request is fine)
+                }
+                Write-Host "  ✓ API key validated" -ForegroundColor Green
+                return $true
+            }
+            "ollama" {
+                return $true
+            }
+            default {
+                Write-Host "  Skipping validation (unknown provider: $KeyType)" -ForegroundColor DarkGray
+                return $true
+            }
+        }
+    } catch {
+        $statusCode = $null
+        if ($_.Exception.Response) {
+            $statusCode = $_.Exception.Response.StatusCode.value__
+        }
+        if ($statusCode) {
+            Write-Host "  ✗ API key validation failed (HTTP $statusCode). The key may be invalid, expired, or have no permissions." -ForegroundColor Red
+        } else {
+            Write-Host "  ✗ API key validation failed: could not reach the API (network error or timeout)." -ForegroundColor Red
+        }
+        return $false
+    }
+}
+
 function Find-Python311 {
     # Try py launcher first (Windows)
     $py = & py -3.11 -c "import sys; print(sys.executable)" 2>$null
@@ -108,10 +174,27 @@ if ($MODE -eq "cloud") {
                 do {
                     $API_KEY_VAL = Read-Host "Create your Google API key and paste it to continue, or press 'q' to quit"
                     if ($API_KEY_VAL -eq "q" -or $API_KEY_VAL -eq "Q") { Write-Host "Quitting."; exit 1 }
-                } while ([string]::IsNullOrWhiteSpace($API_KEY_VAL))
-                break
+                    if (-not [string]::IsNullOrWhiteSpace($API_KEY_VAL)) {
+                        if (Test-ApiKey -KeyType $API_KEY_TYPE -KeyValue $API_KEY_VAL) {
+                            break
+                        } else {
+                            Write-Host "Please try again."
+                            $API_KEY_VAL = ""
+                        }
+                    }
+                } while ($true)
+                if (-not [string]::IsNullOrWhiteSpace($API_KEY_VAL)) { break }
+                continue
             }
-            if (-not [string]::IsNullOrWhiteSpace($API_KEY_VAL)) { break }
+            if (-not [string]::IsNullOrWhiteSpace($API_KEY_VAL)) {
+                if (Test-ApiKey -KeyType $API_KEY_TYPE -KeyValue $API_KEY_VAL) {
+                    break
+                } else {
+                    Write-Host "Please try again."
+                    $API_KEY_VAL = ""
+                    continue
+                }
+            }
             Write-Host "API key cannot be empty."
         } while ($true)
     } else {
@@ -126,9 +209,20 @@ if ($MODE -eq "cloud") {
             "3" { $API_KEY_TYPE = "anthropic" }
             default { Write-Host "Invalid choice."; exit 1 }
         }
-        $API_KEY_VAL = Read-Host "Enter your $API_KEY_TYPE API key"
+        do {
+            $API_KEY_VAL = Read-Host "Enter your $API_KEY_TYPE API key"
+            if ([string]::IsNullOrWhiteSpace($API_KEY_VAL)) {
+                Write-Host "API key cannot be empty for cloud models."
+                continue
+            }
+            if (Test-ApiKey -KeyType $API_KEY_TYPE -KeyValue $API_KEY_VAL) {
+                break
+            } else {
+                Write-Host "Please try again."
+                $API_KEY_VAL = ""
+            }
+        } while ($true)
     }
-    if ([string]::IsNullOrWhiteSpace($API_KEY_VAL)) { Write-Host "API key cannot be empty for cloud models."; exit 1 }
 } else {
     $API_KEY_VAL = "ollama"
 }
