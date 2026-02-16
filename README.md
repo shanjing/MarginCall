@@ -9,6 +9,50 @@ MarginCall is a multi-agent research AI tool built on Google ADK. It orchestrate
 <img width="1778" height="1111" alt="margincall_ui_small_2" src="https://github.com/user-attachments/assets/5ce87171-08e5-46b9-b65d-6da9602987c6" />
 
 
+**Requirements to run the agent**
+
+Must have a valid `GOOGLE_API_KEY` or other cloud API key (run ./setup.sh to load the API keys)
+
+**To start the agent**
+
+```
+git clone https://github.com/shanjing/MarginCall.git
+cd MarginCall; ./setup.sh
+```
+
+**To manually start the headless agent with ADK**
+
+```
+cd MarginCall; ./setup.sh (select 'n' at Start the agent now? (y/n): )
+adk web
+# Open a browser to localhost:8000
+```
+
+4. To run in CLI for debugging or text-based chat:
+
+```
+cd MarginCall; ./setup.sh (select 'n' at Start the agent now? (y/n): )
+python -m main run --help
+python -m main run -i "what is AMZN's next earning report date?"
+python -m main run -i "tell me about GOOGL"
+python -m main run -i "how crazy is the market today?"
+python -m main run -i "what is AMZN's option put/call ratio right now?"
+python -m main run -i "tell me about GOOGL" -d -t
+```
+
+5. To run in a docker container
+
+```
+(run setup.sh and create .env file with a valid API key)
+docker build -t margincall:latest .
+
+# Security check to ensure there is no api key leaking in the image
+docker run --rm margincall:latest grep -r "sk-" /app
+
+docker run -p 8080:8080 --env-file .env margincall:latest
+#open a browser to localhost:8080
+```
+
 
 **Design**
 
@@ -50,54 +94,13 @@ claude
 ...
 ```
 
-
-
-**Requirements to run the agent**
-
-Must have a valid `GOOGLE_API_KEY`,to create your Google API key, go to [Google AI Studio](https://aistudio.google.com/api-keys).)
-
+**LLM Models**
 The agent is tested to work with gemini-2.5-flash, gemini-3-pro-preview.
 It uses ADK's google_search tool and auto switches to brave.com search via MCP for non-gemini cloud based models.
 
 Local LLM models must support tools.
 
 
-
-**To start the agent with full UI support**
-```
-git clone https://github.com/shanjing/MarginCall.git
-cd MarginCall; ./setup.sh
-```
-
-**To manually start the headless agent with ADK**
-```
-cd MarginCall; ./setup.sh (select 'n' at Start the agent now? (y/n): )
-adk web
-# Open a browser to localhost:8000
-```
-
-4. To run in CLI for debugging or text-based chat:
-```
-cd MarginCall; ./setup.sh (select 'n' at Start the agent now? (y/n): )
-python -m main run --help
-python -m main run -i "what is AMZN's next earning report date?"
-python -m main run -i "tell me about GOOGL"
-python -m main run -i "how crazy is the market today?"
-python -m main run -i "what is AMZN's option put/call ratio right now?"
-python -m main run -i "tell me about GOOGL" -d -t
-```
-
-5. To run in a docker container
-```
-(run setup.sh and create .env file with a valid API key)
-docker build -t margincall:latest .
-
-# Security check to ensure there is no api key leaking in the image
-docker run --rm margincall:latest grep -r "sk-" /app
-
-docker run -p 8080:8080 --env-file .env margincall:latest
-#open a browser to localhost:8080
-```
 
 **Agentic Pattern**
 
