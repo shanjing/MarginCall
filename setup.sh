@@ -89,6 +89,14 @@ check_local_configured() {
   [[ -n "$LOCAL_MODEL" ]]
 }
 
+# Discard any input already buffered in the terminal (e.g. keypresses during pip install).
+# Only runs when stdin is a tty. Call before the first read after a non-interactive block.
+drain_stdin() {
+  [[ ! -t 0 ]] && return
+  # Read with 1s timeout until no input (drains buffer; add at most ~1s after install)
+  while read -r -t 1 2>/dev/null; do :; done
+}
+
 run_main_test() {
   (source .venv/bin/activate && python -m main run -i "what is GOOGL's next earning release date")
 }
@@ -104,7 +112,10 @@ run_quick_test() {
     printf "${R}--- Running quick test, this will take up to 3 minutes... ---${N}\n"
   fi
   printf "  ${D}python -m main run -i \"what is GOOGL's next earning release date\"${N}\n"
+  exec 3<&0
+  exec 0</dev/null
   run_main_test
+  exec 0<&3 3<&-
 }
 
 # Run test or ensure model configured. Return 0 if test ran, 1 if no model (caller may run run_model_selection).
@@ -311,16 +322,24 @@ if ! command -v python3.11 &>/dev/null; then
   exit 1
 fi
 
+# Block keyboard input during venv/pip so keypresses aren't buffered as the next prompt's answer
+exec 3<&0
+exec 0</dev/null
+
 python3.11 -m venv .venv
 printf "  ${G}✓${N} .venv created\n"
 source .venv/bin/activate
 # Install tqdm first so install_with_progress can show a progress bar
 pip install tqdm -q
 if ! python3.11 tools/install_with_progress.py; then
+  exec 0<&3 3<&-
   printf "${R}ERROR: pip install failed. Check the output above, fix any issues (e.g. network, missing deps), and run this script again.${N}\n"
   exit 1
 fi
 printf "  ${G}✓${N} required packages installed\n"
+
+exec 0<&3 3<&-
+drain_stdin
 
 # Copy env.example to .env if .env does not exist
 if [[ ! -f .env ]]; then
@@ -331,32 +350,34 @@ fi
 echo ""
 printf "${R}[2/3] Model & API key${N}\n"
 echo "--- Model selection ---"
-echo "Which model do you want to use?"
-echo "  1) gemini-2.5-flash (recommended)"
-echo "  2) gemini-3-pro-preview"
-echo "  3) gemini-2.5-pro"
-echo "  4) qwen3-coder-next:latest (local LLM, requires Ollama)"
-echo "  5) qwen3:8b (local LLM, requires Ollama)"
-echo "  6) Other models"
-read -r -p "Enter choice [1-6]: " choice
-
-case "$choice" in
-  1) MODE=cloud; MODEL_NAME="gemini-2.5-flash" ;;
-  2) MODE=cloud; MODEL_NAME="gemini-3-pro-preview" ;;
-  3) MODE=cloud; MODEL_NAME="gemini-2.5-pro" ;;
-  4) MODE=local; MODEL_NAME="qwen3-coder-next:latest" ;;
-  5) MODE=local; MODEL_NAME="qwen3:8b" ;;
-  6)
-    read -r -p "Enter model name: " MODEL_NAME
-    [[ -z "$MODEL_NAME" ]] && { echo "Model name cannot be empty."; exit 1; }
-    read -r -p "Is this a local (Ollama) model? (y/n): " is_local
-    case "$is_local" in
-      [yY]|[yY][eE][sS]) MODE=local ;;
-      *) MODE=cloud ;;
-    esac
-    ;;
-  *) echo "Invalid choice."; exit 1 ;;
-esac
+while true; do
+  echo "Which model do you want to use?"
+  echo "  1) gemini-2.5-flash (recommended)"
+  echo "  2) gemini-3-pro-preview"
+  echo "  3) gemini-2.5-pro"
+  echo "  4) qwen3-coder-next:latest (local LLM, requires Ollama)"
+  echo "  5) qwen3:8b (local LLM, requires Ollama)"
+  echo "  6) Other models"
+  read -r -p "Enter choice [1-6]: " choice
+  case "$choice" in
+    1) MODE=cloud; MODEL_NAME="gemini-2.5-flash"; break ;;
+    2) MODE=cloud; MODEL_NAME="gemini-3-pro-preview"; break ;;
+    3) MODE=cloud; MODEL_NAME="gemini-2.5-pro"; break ;;
+    4) MODE=local; MODEL_NAME="qwen3-coder-next:latest"; break ;;
+    5) MODE=local; MODEL_NAME="qwen3:8b"; break ;;
+    6)
+      read -r -p "Enter model name: " MODEL_NAME
+      [[ -z "$MODEL_NAME" ]] && { echo "Model name cannot be empty."; exit 1; }
+      read -r -p "Is this a local (Ollama) model? (y/n): " is_local
+      case "$is_local" in
+        [yY]|[yY][eE][sS]) MODE=local ;;
+        *) MODE=cloud ;;
+      esac
+      break
+      ;;
+    *) echo "Invalid choice. Please enter a number from 1 to 6." ;;
+  esac
+done
 
 
 # API key
