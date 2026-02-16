@@ -3,6 +3,14 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "Setting up runtime environment (Windows)..."
 
+# Discard any input already buffered (e.g. keypresses during pip install).
+# Only when stdin is the console (not redirected) so we don't clear piped input.
+function Drain-ConsoleInput {
+    if (-not [Console]::IsInputRedirected) {
+        try { $Host.UI.RawUI.FlushInputBuffer() } catch { }
+    }
+}
+
 function Find-Python311 {
     # Try py launcher first (Windows)
     $py = & py -3.11 -c "import sys; print(sys.executable)" 2>$null
@@ -52,31 +60,35 @@ if (-not (Test-Path .env)) {
 }
 
 Write-Host ""
+Drain-ConsoleInput
 Write-Host "--- Model selection ---"
-Write-Host "Which model do you want to use?"
-Write-Host "  1) gemini-2.5-flash (recommended)"
-Write-Host "  2) gemini-3-pro-preview"
-Write-Host "  3) gemini-2.5-pro"
-Write-Host "  4) qwen3-coder-next:latest (local LLM, requires Ollama)"
-Write-Host "  5) qwen3:8b (local LLM, requires Ollama)"
-Write-Host "  6) Other models"
-$choice = Read-Host "Enter choice [1-6]"
-
 $MODE = "cloud"
 $MODEL_NAME = ""
-switch ($choice) {
-    "1" { $MODE = "cloud"; $MODEL_NAME = "gemini-2.5-flash" }
-    "2" { $MODE = "cloud"; $MODEL_NAME = "gemini-3-pro-preview" }
-    "3" { $MODE = "cloud"; $MODEL_NAME = "gemini-2.5-pro" }
-    "4" { $MODE = "local"; $MODEL_NAME = "qwen3-coder-next:latest" }
-    "5" { $MODE = "local"; $MODEL_NAME = "qwen3:8b" }
-    "6" {
-        $MODEL_NAME = Read-Host "Enter model name"
-        if ([string]::IsNullOrWhiteSpace($MODEL_NAME)) { Write-Host "Model name cannot be empty."; exit 1 }
-        $isLocal = (Read-Host "Is this a local (Ollama) model? (y/n)").ToLower()
-        if ($isLocal -match "^(y|yes)$") { $MODE = "local" } else { $MODE = "cloud" }
+while ($true) {
+    Write-Host "Which model do you want to use?"
+    Write-Host "  1) gemini-2.5-flash (recommended)"
+    Write-Host "  2) gemini-3-pro-preview"
+    Write-Host "  3) gemini-2.5-pro"
+    Write-Host "  4) qwen3-coder-next:latest (local LLM, requires Ollama)"
+    Write-Host "  5) qwen3:8b (local LLM, requires Ollama)"
+    Write-Host "  6) Other models"
+    $choice = Read-Host "Enter choice [1-6]"
+    switch ($choice) {
+        "1" { $MODE = "cloud"; $MODEL_NAME = "gemini-2.5-flash"; break }
+        "2" { $MODE = "cloud"; $MODEL_NAME = "gemini-3-pro-preview"; break }
+        "3" { $MODE = "cloud"; $MODEL_NAME = "gemini-2.5-pro"; break }
+        "4" { $MODE = "local"; $MODEL_NAME = "qwen3-coder-next:latest"; break }
+        "5" { $MODE = "local"; $MODEL_NAME = "qwen3:8b"; break }
+        "6" {
+            $MODEL_NAME = Read-Host "Enter model name"
+            if ([string]::IsNullOrWhiteSpace($MODEL_NAME)) { Write-Host "Model name cannot be empty."; exit 1 }
+            $isLocal = (Read-Host "Is this a local (Ollama) model? (y/n)").ToLower()
+            if ($isLocal -match "^(y|yes)$") { $MODE = "local" } else { $MODE = "cloud" }
+            break
+        }
+        default { Write-Host "Invalid choice. Please enter a number from 1 to 6." }
     }
-    default { Write-Host "Invalid choice."; exit 1 }
+    if ($MODEL_NAME -ne "") { break }
 }
 
 # API key
