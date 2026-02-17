@@ -1,0 +1,6 @@
+{
+  "recommendation_weighting": {
+    "market_sentiment_pct": 60,
+    "stock_performance_pct": 40
+  }
+}

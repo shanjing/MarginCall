@@ -47,8 +47,8 @@ class RedditPost(BaseModel):
 class StockRating(BaseModel):
     """Rating recommendation for a stock."""
 
-    recommendation: Literal["Buy", "Sell", "Hold"] = Field(
-        ..., description="The recommendation: Buy, Sell, or Hold."
+    recommendation: Literal["Bullish", "Bearish", "Neutral"] = Field(
+        ..., description="The recommendation: Bullish, Bearish, or Neutral (sentiment only; not investment advice)."
     )
     confidence_percent: int = Field(
         ...,

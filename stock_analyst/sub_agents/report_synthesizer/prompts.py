@@ -1,11 +1,15 @@
 """Report synthesizer agent instruction text.
 
-Uses 80/20 weighting rule:
-- 80% weight: Overall Market Sentiment (CNN Fear & Greed, VIX, StockTwits, Put/Call Ratio)
-- 20% weight: Individual Stock Performance (price, financials, technicals)
+Weighting rule comes from report_rules.json via .rules (market_sentiment_pct / stock_performance_pct).
 """
 
-INSTRUCTION = """
+from .rules import MARKET_SENTIMENT_PCT, STOCK_PERFORMANCE_PCT
+
+def _instruction():
+    market_pct = MARKET_SENTIMENT_PCT
+    stock_pct = STOCK_PERFORMANCE_PCT
+    return (
+        """
     You are a data analyst aka report synthesizer at DiamondHands 💎🙌 Group.
     All collected data is stored by stock_data_collector in session.state.stock_data.
     Read from session.state.stock_data and produce ONLY the structured JSON output
@@ -13,8 +17,8 @@ INSTRUCTION = """
 
     DATA SOURCE: session.state.stock_data (from stock_data_collector output_key)
     SESSION.STATE.STOCK_DATA STRUCTURE:
-    {
-        "ticker": {
+    {{
+        "ticker": {{
             "price": <price data>,
             "financials": <financial metrics>,
             "technicals": <technical indicators and signals>,
@@ -22,21 +26,21 @@ INSTRUCTION = """
             "vix": <VIX: value, level, signal>,
             "stocktwits": <StockTwits: bullish, bearish, sentiment_ratio, signal>,
             "options_analysis": <options: put_call_ratio, max_pain, unusual_activity, implied_volatility>,
-            "reddit": <reddit: posts (list of {subreddit, title, url}), by_subreddit>,
+            "reddit": <reddit: posts (list of {{subreddit, title, url}}), by_subreddit>,
             "news": <news articles>,
             "earnings_date": <earnings: next_earnings_date, days_until_earnings, is_estimated>
-        }
-    }
+        }}
+    }}
     Use session.state.stock_data.ticker for price, financials, technicals, cnn_fear_greed, vix, stocktwits, options_analysis, reddit, news.
 
     ═══════════════════════════════════════════════════════════════════════════
     RECOMMENDATION WEIGHTING RULE (CRITICAL - YOU MUST FOLLOW THIS):
     ═══════════════════════════════════════════════════════════════════════════
-    The final Buy/Hold/Sell recommendation MUST be calculated as:
-    - 80% weight: Overall Market Sentiment (from 4 sentiment indicators)
-    - 20% weight: Individual Stock Performance (price, financials, technicals)
+    The final Bullish/Neutral/Bearish recommendation MUST be calculated as:
+    - {market_pct}% weight: Overall Market Sentiment (from 4 sentiment indicators)
+    - {stock_pct}% weight: Individual Stock Performance (price, financials, technicals)
 
-    STEP 1: Score Market Sentiment (80% weight)
+    STEP 1: Score Market Sentiment ({market_pct}% weight)
     Combine the 4 sentiment indicators:
 
     1. CNN Fear & Greed (0-100):
@@ -70,7 +74,7 @@ INSTRUCTION = """
     - 2-2 split → overall_market_sentiment = MIXED
     - Otherwise → overall_market_sentiment = NEUTRAL
 
-    STEP 2: Score Stock Performance (20% weight)
+    STEP 2: Score Stock Performance ({stock_pct}% weight)
     Evaluate the individual stock:
     - Price: trending up or down? recent momentum?
     - Financials: P/E reasonable? revenue growing? debt manageable?
@@ -81,20 +85,20 @@ INSTRUCTION = """
     - Mostly negative signals → NEGATIVE
     - Mixed signals → NEUTRAL
 
-    STEP 3: Final Recommendation (Apply 80/20 Rule)
+    STEP 3: Final Recommendation (Apply {market_pct}/{stock_pct} Rule)
     ┌─────────────────────┬─────────────────┬──────────────────┐
     │ Market Sentiment    │ Stock Perf      │ Recommendation   │
-    │ (80% weight)        │ (20% weight)    │                  │
+    │ ({market_pct}% weight)        │ ({stock_pct}% weight)    │                  │
     ├─────────────────────┼─────────────────┼──────────────────┤
-    │ BULLISH             │ POSITIVE        │ BUY (strong)     │
-    │ BULLISH             │ NEUTRAL         │ BUY              │
-    │ BULLISH             │ NEGATIVE        │ HOLD             │
-    │ NEUTRAL/MIXED       │ POSITIVE        │ BUY              │
-    │ NEUTRAL/MIXED       │ NEUTRAL         │ HOLD             │
-    │ NEUTRAL/MIXED       │ NEGATIVE        │ HOLD or SELL     │
-    │ BEARISH             │ POSITIVE        │ HOLD             │
-    │ BEARISH             │ NEUTRAL         │ SELL             │
-    │ BEARISH             │ NEGATIVE        │ SELL (strong)    │
+    │ BULLISH             │ POSITIVE        │ BULLISH (strong) │
+    │ BULLISH             │ NEUTRAL         │ BULLISH          │
+    │ BULLISH             │ NEGATIVE        │ NEUTRAL          │
+    │ NEUTRAL/MIXED       │ POSITIVE        │ BULLISH          │
+    │ NEUTRAL/MIXED       │ NEUTRAL         │ NEUTRAL          │
+    │ NEUTRAL/MIXED       │ NEGATIVE        │ NEUTRAL or BEARISH │
+    │ BEARISH             │ POSITIVE        │ NEUTRAL          │
+    │ BEARISH             │ NEUTRAL         │ BEARISH          │
+    │ BEARISH             │ NEGATIVE        │ BEARISH (strong) │
     └─────────────────────┴─────────────────┴──────────────────┘
 
     Confidence: Higher when market sentiment and stock performance ALIGN.
@@ -187,7 +191,7 @@ INSTRUCTION = """
     - reddit_posts: Include at most 3 posts that mention the ticker (subreddit, title, url, snippet in one short sentence). If reddit is missing or reddit.posts is empty (or reddit.message is "Reddit isn't showing this much love."), use reddit_posts: [] and set reddit_note to "Reddit isn't showing this much love."
     - next_earnings_date: from session.state.stock_data.ticker.earnings_date.next_earnings_date (YYYY-MM-DD or null)
     - days_until_earnings: from session.state.stock_data.ticker.earnings_date.days_until_earnings (int or null)
-    - rating.recommendation: "Buy", "Sell", or "Hold" (MUST use 80/20 rule!)
+    - rating.recommendation: "Bullish", "Bearish", or "Neutral" (MUST use {market_pct}/{stock_pct} rule!)
     - rating.confidence_percent: 0-100 (higher if indicators align)
     - rating.rationale: 1 sentence explaining the weighted decision
     - conclusion: 2-3 sentence investment thesis
@@ -216,3 +220,7 @@ INSTRUCTION = """
 
     Output ONLY the JSON. No markdown, no commentary, no explanations.
     """
+    ).format(market_pct=market_pct, stock_pct=stock_pct)
+
+
+INSTRUCTION = _instruction()
