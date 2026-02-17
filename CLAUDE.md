@@ -68,7 +68,7 @@ Data flows via `session.state` and `output_key`. Root routes: research → pipel
 - **Cache:** `@cached` from `tools/cache/decorators.py`. Key format: `{TICKER}:{data_type}:{YYYY-MM-DD}`. TTL: TTL_REALTIME / TTL_INTRADAY / TTL_DAILY.
 - **Errors:** Tools return `{"status": "error", "error_message": "..."}`; do not raise.
 - **SUB_AGENTS:** Add new sub-agent name to `SUB_AGENTS` in `.env`.
-- **80/20:** report_synthesizer uses 80% market sentiment / 20% stock fundamentals. Do not change without discussion.
+- **60/40:** report_synthesizer uses 60% market sentiment / 40% stock fundamentals. Do not change without discussion.
 
 ---
 
@@ -105,5 +105,5 @@ Full checklist: `/add-agent` or `.claude/commands/add-agent.md`.
 - Hardcode model names; use `AI_MODEL`.
 - Put file paths in cache keys.
 - Put SQLite-specific logic in tool code (use cache interface only).
-- Change 80/20 weighting without discussion.
+- Change 60/40 weighting without discussion.
 - Add data-fetching tools without `@cached`.

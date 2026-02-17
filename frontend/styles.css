@@ -20,7 +20,7 @@ html, body { height: 100%; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: var(--bg);
-  background-image: url("assets/wagmi-bg.png");
+  background-image: url("assets/wagmi-bg.jpg");
   background-repeat: repeat;
   background-size: 50% 50%;
   background-position: 0 0;
@@ -326,9 +326,9 @@ footer {
   font-weight: 400;
   opacity: 0.8;
 }
-.rating-buy    { background: rgba(52,211,153,0.15); color: var(--green); }
-.rating-hold   { background: rgba(251,191,36,0.15); color: var(--yellow); }
-.rating-sell   { background: rgba(248,113,113,0.15); color: var(--red); }
+.rating-bullish { background: rgba(52,211,153,0.15); color: var(--green); }
+.rating-neutral { background: rgba(251,191,36,0.15); color: var(--yellow); }
+.rating-bearish { background: rgba(248,113,113,0.15); color: var(--red); }
 
 /* Sections */
 .report-section {
@@ -387,9 +387,9 @@ footer {
 }
 
 /* Signal colors */
-.signal-bullish, .signal-buy { color: var(--green); }
-.signal-bearish, .signal-sell { color: var(--red); }
-.signal-neutral, .signal-hold, .signal-mixed { color: var(--yellow); }
+.signal-bullish { color: var(--green); }
+.signal-bearish { color: var(--red); }
+.signal-neutral, .signal-mixed { color: var(--yellow); }
 .signal-cautious { color: var(--orange); }
 
 /* Options section */

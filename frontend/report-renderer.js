@@ -243,13 +243,16 @@ function renderStockReport(r) {
     { who: "Mark Baum (The Big Short)", line: "I have a feeling in a few years people are going to be doing what they always do when the economy tanks. They will be blaming it on immigrants and poor people." },
   ];
   const quote = quoteLine
-    ? { line: quoteLine, who: quoteAttribution || "—" }
+    ? { line: quoteLine, who: quoteAttribution || "" }
     : fallbackQuotes[Math.floor(Math.random() * fallbackQuotes.length)];
+  // Show only parenthetical from attribution, e.g. "(Margin Call)" — no em dash or character name
+  const parenMatch = (quote.who && quote.who.match(/\([^)]+\)/));
+  const quoteSource = parenMatch ? parenMatch[0] : "";
   const quoteSec = el("div", "report-section report-quote");
   quoteSec.appendChild(elText("h3", "Quote"));
   const quoteBlock = el("div", "quote-block");
   quoteBlock.appendChild(elText("p", "\u201C" + quote.line + "\u201D", "quote-line"));
-  quoteBlock.appendChild(elText("div", quote.who ? "\u2014 " + quote.who : "", "quote-attribution"));
+  if (quoteSource) quoteBlock.appendChild(elText("div", quoteSource, "quote-attribution"));
   quoteSec.appendChild(quoteBlock);
   card.appendChild(quoteSec);
 
