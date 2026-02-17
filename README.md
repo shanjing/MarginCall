@@ -1,6 +1,8 @@
 ## MarginCall
 
-MarginCall is a multi-agent research AI tool built on Google ADK. It orchestrates AI agents to ingest unstructured web data and real-time market signals, synthesizing high-fidelity reports delivered via a movie-inspired persona (Sam Rogers).
+Multi-agent stock research system built on Google ADK. Orchestrates AI agents to ingest unstructured web data and real-time market signals, synthesizing structured reports via a movie-inspired persona (Sam Rogers).
+
+Built with infrastructure-grade patterns: contract-driven schemas, cost-aware caching, token budget management, and stateless horizontal scaling. See **[ENGINEERING.md](ENGINEERING.md)** for architecture decisions, scaling design, and infrastructure deep dives.
 
 <img width="1777" height="1107" alt="margincall_ui_small" src="https://github.com/user-attachments/assets/1dae7abf-f1a7-4197-8d05-2481858fe5a8" />
 
@@ -55,104 +57,11 @@ docker run -p 8080:8080 --env-file .env margincall:latest
 #open a browser to localhost:8080
 ```
 
-
-**Design**
-
-1. Agentic Pattern 
-The system employs a supervisor-led, multi-agent collaboration design: 
-- supervisor model at the top, sequential handoffs + expert team inside the pipeline
-- “agent as a tool” used for both the pipeline and the news sub-agent. 
-- MCP and tool-calling to provide real-time knowledge
-
-2. Infrastructure 
-- 3-tier cache for different data sources with 80%+ expected cache hits to reduce latency
-- Token Monitoring and Rate-Limit to avoid flooding session states for cost control
-
-3. Agent Development 
-- System and Agentic two layers with separate schemas for quick development and easy debugging
-- Strong data schemas to ensure data fidelity and to eliminate LLM hallucinations
-
-4. Cloud Deployment
-Stateless design for horizontal scalability, can run in:
-- a Docker container/Kubernetes Pods or 
-- a headless adk web or
-- CLI for debugging
-
-5. Observability [W.I.P]
-- token monitoring to prevent bloating LLM context; (W.I.P)
-- extensive logging in CLI;
-- export metrics for Prometheus/Grafana stack;
-- use third party tools such as AgentOps
-
-6. AI Integration
-
-Claude Code contexts, commands, and skills are provided for AI assistants.
-```
-git clone https://github.com/shanjing/MarginCall
-cd MarginCall
-claude
->/context
-> tell me about this project
-...
-```
-
 **LLM Models**
 The agent is tested to work with gemini-2.5-flash, gemini-3-pro-preview.
 It uses ADK's google_search tool and auto switches to brave.com search via MCP for non-gemini cloud based models.
 
 Local LLM models must support tools.
-
-
-
-**Agentic Pattern**
-
-Supervisor → AgentTool(sequential pipeline (data → report → present)):
-
-
-```
-    ┌─────────────────────────────────────────────────────────┐
-    │ stock_analyst (root)                                    │
-    │ tools: stock_analysis_pipeline, invalidate_cache         │
-    └───────────────────────────┬─────────────────────────────┘
-                                │
-                                v
-    ┌─────────────────────────────────────────────────────────┐
-    │ stock_analysis_pipeline (sequential)                    │
-    └───────────────────────────┬─────────────────────────────┘
-                                │
-        ┌───────────────────────┼───────────────────────┐
-        v                       
-    ┌───────────────┐     ┌───────────────┐     ┌──────────────┐
-    │stock_data_    │ ──> │report_        │ ──> │ presenter    │
-    │collector      │     │synthesizer    │     │ (no tools)   │
-    │               │     │ (no tools)    │     └──────────────┘
-    │ tools:        │     │               │
-    │ fetch_stock_  │     └───────────────┘
-    │ price,        │
-    │ fetch_        │
-    │ financials,   │
-    │ fetch_        │
-    │ technicals_   │
-    │ with_chart,   │
-    │ fetch_cnn_    │
-    │ greedy,       │
-    │ fetch_vix,    │
-    │ fetch_        │
-    │ stocktwits_   │
-    │ sentiment,    │
-    │ fetch_        │
-    │ options_      │
-    │ analysis,     │
-    │ news_fetcher  │
-    └───────┬───────┘
-            │
-            v
-    ┌───────────────┐
-    │ news_fetcher  │
-    │ google_search │
-    │ | brave_search│
-    └───────────────┘
-```
 
 **Credits**
 

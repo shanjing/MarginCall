@@ -1,9 +1,11 @@
-##Caching Strategy##
+## Caching Strategy
 
 Goal:
 Cache artifacts and data locally so that repeat requests within 24 hours serve from cache instead of re-fetching everything.
 
 User asks "Analyze AAPL"
+
+```
         │
         ▼
   Cache Lookup (by ticker + date)
@@ -17,10 +19,11 @@ User asks "Analyze AAPL"
   │  local cache    Save to cache
   │      │                   │
   └──────┴───────────────────┘
+```
 
-###SQLite Cache Index(cache.db)
+### SQLite Cache Index (cache.db)
 
-
+```sql
 CREATE TABLE cache_entries (
     id          INTEGER PRIMARY KEY,
     ticker      TEXT NOT NULL,
@@ -35,8 +38,7 @@ CREATE TABLE cache_entries (
 
 CREATE INDEX idx_ticker_date ON cache_entries(ticker, cache_date);
 CREATE INDEX idx_expires ON cache_entries(expires_at);
-
-
+```
 
 ### Future backend:
 Redis: cache_key → Redis key, data → Redis value, ttl_seconds → EXPIRE
