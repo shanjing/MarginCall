@@ -17,7 +17,7 @@ from datetime import date
 
 import uvicorn
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from google.adk.cli.fast_api import get_fast_api_app
 
@@ -161,6 +161,14 @@ async def log_stream():
     client_queue: asyncio.Queue[str] = asyncio.Queue()
     _log_subscribers.append(client_queue)
 
+    # ── Prometheus SSE gauge ──
+    try:
+        from tools.metrics import METRICS_ENABLED, active_sse_connections
+        if METRICS_ENABLED:
+            active_sse_connections.inc()
+    except Exception:
+        pass
+
     async def generate():
         # Flush-busting padding so first chunk is sent immediately
         yield ": " + (" " * 2046) + "\n\n"
@@ -181,6 +189,12 @@ async def log_stream():
         finally:
             if client_queue in _log_subscribers:
                 _log_subscribers.remove(client_queue)
+            try:
+                from tools.metrics import METRICS_ENABLED, active_sse_connections
+                if METRICS_ENABLED:
+                    active_sse_connections.dec()
+            except Exception:
+                pass
 
     return StreamingResponse(
         generate(),
@@ -201,6 +215,18 @@ async def on_startup():
 
 
 app.include_router(charts_router)
+
+
+# ── Prometheus /metrics endpoint ──────────────────────────────────────────────
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint."""
+    try:
+        from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+        return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+    except ImportError:
+        raise HTTPException(501, "prometheus_client not installed")
+
 
 # Serve custom frontend at / (must be mounted after API routes)
 if os.path.isdir(FRONTEND_DIR):

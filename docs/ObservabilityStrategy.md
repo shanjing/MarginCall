@@ -1,23 +1,23 @@
 # Observability Strategy
 
-This document covers the monitoring and observability design for MarginCall — what we monitor, what ADK provides natively, and how we implement each layer.
+This document covers the monitoring and observability design for MarginCall — what is monitored, what ADK provides natively, and how each layer is implemented.
 
-The core thesis: **an LLM agent pipeline has the same observability requirements as any distributed system** (latency, error rates, resource consumption, throughput) **plus LLM-specific concerns** (token cost, context window pressure, hallucination guardrails, cache economics). We instrument both.
+The core thesis: **an LLM agent pipeline has the same observability requirements as any distributed system** (latency, error rates, resource consumption, throughput) **plus LLM-specific concerns** (token cost, context window pressure, hallucination guardrails, cache economics). Both layers are instrumented.
 
 ---
 
 ## 1. What Needs to Be Monitored
 
-### Application Layer (our tools and infrastructure)
+### Application Layer (MarginCall tools and infrastructure)
 
 | Metric | Why it matters | Current status |
 |--------|---------------|----------------|
-| **Cache hit/miss rate** | Each cache miss triggers an external API call + downstream LLM processing. Target: 80%+ hit rate. | Tracked per-run via `@cached` decorator and `run_context` registry |
-| **Tool execution latency** | Identifies slow external dependencies (yfinance, Reddit, CNN). | Tracked per-run via `RunSummaryCollector` |
-| **Tool error rate** | A failing tool degrades report quality. Persistent failures need alerting. | Logged via `log_tool_error()`, recorded in run registry |
-| **Truncation events** | Signals that upstream data is growing — early warning for token budget pressure. | Tracked per-tool via `_truncation_occurred` context var |
+| **Cache hit/miss rate** | Each cache miss triggers an external API call + downstream LLM processing. Target: 80%+ hit rate. | **Prometheus:** `margincall_cache_ops_total{operation,result}` + per-run logging via `@cached` decorator |
+| **Tool execution latency** | Identifies slow external dependencies (yfinance, Reddit, CNN). | **Prometheus:** `margincall_tool_duration_seconds{tool_name}` + per-run via `RunSummaryCollector` |
+| **Tool error rate** | A failing tool degrades report quality. Persistent failures need alerting. | **Prometheus:** `margincall_tool_errors_total{tool_name}` + logged via `log_tool_error()` |
+| **Truncation events** | Signals that upstream data is growing — early warning for token budget pressure. | **Prometheus:** `margincall_truncation_total{tool_name}` + per-tool `_truncation_occurred` context var |
 | **Cache entry count / TTL distribution** | Monitors cache growth and staleness. | Available via `get_stats()` on cache backend |
-| **Run wall-clock time** | End-to-end latency from user query to response. | Tracked by `RunSummaryCollector.total_seconds()` |
+| **Run wall-clock time** | End-to-end latency from user query to response. | **Prometheus:** `margincall_run_duration_seconds` histogram + `RunSummaryCollector.total_seconds()` |
 
 ### Agent/LLM Layer (ADK provides this)
 
@@ -32,22 +32,22 @@ The core thesis: **an LLM agent pipeline has the same observability requirements
 
 ### Infrastructure Layer (standard)
 
-| Metric | Why it matters |
-|--------|---------------|
-| **HTTP request latency (p50/p95/p99)** | User-facing SLA. FastAPI middleware. |
-| **Active SSE connections** | Monitors frontend load on log streaming. |
-| **SQLite cache DB size** | Prevents disk exhaustion on long-running instances. |
-| **Process memory / CPU** | Standard container health. Prometheus `process_*` metrics come free. |
+| Metric | Why it matters | Current status |
+|--------|---------------|----------------|
+| **HTTP request latency (p50/p95/p99)** | User-facing SLA. FastAPI middleware. | Not yet instrumented (Phase 2) |
+| **Active SSE connections** | Monitors frontend load on log streaming. | **Prometheus:** `margincall_active_sse_connections` gauge |
+| **SQLite cache DB size** | Prevents disk exhaustion on long-running instances. | Not yet instrumented (Phase 2) |
+| **Process memory / CPU** | Standard container health. Prometheus `process_*` metrics come free. | **Auto-exposed** by `prometheus_client` default collectors |
 
 ---
 
 ## 2. What ADK Currently Offers
 
-*(ADK API details below — callback names, span attributes, env vars — should be confirmed against your `adk-python` / `adk-docs` version when implementing.)*
+*(ADK API details below — callback names, span attributes, env vars — should be confirmed against the `adk-python` / `adk-docs` version when implementing.)*
 
 ### 2.1 Built-in OpenTelemetry Instrumentation
 
-ADK (v1.21.0+) instruments every agent run with OpenTelemetry spans automatically. No application code needed — these spans exist the moment you use ADK's runner:
+ADK (v1.21.0+) instruments every agent run with OpenTelemetry spans automatically. No application code needed — these spans exist when ADK's runner is used:
 
 **Span hierarchy per request:**
 ```
@@ -140,9 +140,9 @@ Captures every event (LLM calls, tool executions, agent lifecycle) with full sch
 
 ---
 
-## 3. What We Already Have
+## 3. Current Implementation
 
-MarginCall has run-scoped observability built into the application layer. This is the foundation that Prometheus metrics will formalize:
+MarginCall has run-scoped observability built into the application layer. This foundation has been **formalized into Prometheus metrics** (see Section 4) while preserving the original per-run logging unchanged:
 
 ### 3.1 RunSummaryCollector (`tools/logging_utils.py`)
 
@@ -205,59 +205,55 @@ Real-time log delivery to the frontend:
 
 ---
 
-## 4. Implementation Plan
+## 4. Implementation Status
 
-### Phase 1: Prometheus `/metrics` Endpoint
+### Phase 1: Prometheus `/metrics` Endpoint — IMPLEMENTED
 
-**Goal:** Expose application-level metrics that Prometheus can scrape. No OTEL collector needed — just `prometheus_client` library and a `/metrics` route.
+**Dependency:** `prometheus_client>=0.21.0` (in `requirements.txt`).
 
-**Metrics to expose:**
+**Metrics endpoint:** `GET /metrics` on the FastAPI server returns `prometheus_client.generate_latest()` in standard Prometheus text exposition format.
 
-```python
-# Cache economics
-cache_operations_total     = Counter("margincall_cache_ops_total", "Cache operations", ["operation", "result"])
-                             # labels: operation=get|put|invalidate, result=hit|miss|error
+**Central definitions:** All metric objects live in `tools/metrics.py` — single source of truth. The module is import-guarded: if `prometheus_client` is not installed, `METRICS_ENABLED = False` and the app runs without metrics (no crashes, no side effects).
 
-# Tool performance
-tool_duration_seconds      = Histogram("margincall_tool_duration_seconds", "Tool execution time", ["tool_name"])
-tool_errors_total          = Counter("margincall_tool_errors_total", "Tool errors", ["tool_name"])
-tool_calls_total           = Counter("margincall_tool_calls_total", "Tool invocations", ["tool_name", "cache_hit"])
+**10 metrics exposed:**
 
-# Token budget
-truncation_events_total    = Counter("margincall_truncation_total", "Truncation events", ["tool_name"])
+| Metric | Type | Labels | Instrumentation point |
+|--------|------|--------|----------------------|
+| `margincall_tool_calls_total` | Counter | `tool_name`, `cache_hit` | `tools/cache/decorators.py` → `_record_tool_run()` |
+| `margincall_tool_duration_seconds` | Histogram | `tool_name` | `tools/cache/decorators.py` → `_record_tool_duration()` |
+| `margincall_tool_errors_total` | Counter | `tool_name` | `tools/cache/decorators.py` → `_record_tool_run()` (when `error` is not None) |
+| `margincall_cache_ops_total` | Counter | `operation`, `result` | `tools/cache/sqlite_backend.py` → `_inc_cache_metric()` in `get()`, `put()`, `invalidate_ticker()` |
+| `margincall_truncation_total` | Counter | `tool_name` | `tools/truncate_for_llm.py` → `_inc_truncation_metric()` after each `_set_truncation_occurred()` |
+| `margincall_run_duration_seconds` | Histogram | — | `tools/runner_utils.py` → `execute_agent_stream()` finally block |
+| `margincall_runs_total` | Counter | `status` | `tools/runner_utils.py` → status set per exception type (success/timeout/llm_error/agent_error) |
+| `margincall_llm_tokens_total` | Counter | `direction`, `model` | `stock_analyst/agent.py` → `_after_model_callback` extracts `usage_metadata` |
+| `margincall_llm_call_duration_seconds` | Histogram | `model` | `stock_analyst/agent.py` → `_before_model_callback` + `_after_model_callback` pair |
+| `margincall_active_sse_connections` | Gauge | — | `server.py` → inc on SSE connect, dec in generator finally block |
 
-# Run-level
-run_duration_seconds       = Histogram("margincall_run_duration_seconds", "Full pipeline run time")
-run_total                  = Counter("margincall_runs_total", "Total agent runs", ["status"])
-                             # labels: status=success|timeout|llm_error|agent_error
+**Histogram bucket ranges:**
+- `tool_duration_seconds`: 0.1, 0.5, 1, 2, 5, 10, 15, 30, 60s (tool calls range from sub-second cache hits to 30s+ API calls)
+- `run_duration_seconds`: 1, 5, 10, 20, 30, 45, 60, 90, 120, 180, 300s (full pipeline runs typically 20-90s)
+- `llm_call_duration_seconds`: 0.5, 1, 2, 5, 10, 20, 30, 60s (model inference typically 2-15s)
 
-# LLM cost (from ADK callbacks)
-llm_tokens_total           = Counter("margincall_llm_tokens_total", "LLM tokens consumed", ["direction", "model"])
-                             # labels: direction=input|output
-llm_call_duration_seconds  = Histogram("margincall_llm_call_duration_seconds", "LLM inference time", ["model"])
-```
+**Files modified:**
 
-**Integration points:**
+| File | What was added |
+|------|---------------|
+| `tools/metrics.py` (**new**) | All 10 metric definitions with import guard |
+| `tools/cache/decorators.py` | `_record_tool_run()` increments `tool_calls_total` + `tool_errors_total`; new `_record_tool_duration()` records histogram; timing via `time.perf_counter()` around function calls |
+| `tools/cache/sqlite_backend.py` | `_inc_cache_metric()` helper called in `get()` (hit/miss), `put()` (ok), `invalidate_ticker()` (ok) |
+| `tools/truncate_for_llm.py` | `_inc_truncation_metric()` called after every `_set_truncation_occurred()` |
+| `tools/runner_utils.py` | `_run_status` variable tracks outcome through try/except/finally; metrics recorded in finally block |
+| `stock_analyst/agent.py` | `_before_model_callback` stores start time in ContextVar; `_after_model_callback` records tokens + latency; both added to root agent |
+| `server.py` | `GET /metrics` endpoint; SSE gauge inc/dec in `log_stream()` |
 
-1. **Cache metrics** — Instrument `SQLiteCacheBackend.get()` / `put()` to increment `cache_operations_total`.
-2. **Tool metrics** — Instrument the `@cached` decorator to record `tool_duration_seconds`, `tool_calls_total`, and `tool_errors_total`.
-3. **Truncation metrics** — Instrument `truncate_string_to_bytes()` to increment `truncation_events_total`.
-4. **Run metrics** — Instrument `execute_agent_stream()` in `runner_utils.py` to record `run_duration_seconds` and `run_total`.
-5. **LLM metrics** — Use ADK's `after_model_callback` to extract `usage_metadata` and record `llm_tokens_total` and `llm_call_duration_seconds`.
-6. **FastAPI route** — `GET /metrics` returns `prometheus_client.generate_latest()`.
+**Design pattern:** Every instrumentation point uses lazy `try/except` imports so metrics are additive — removing `prometheus_client` from requirements silently disables all metrics without breaking any existing functionality.
 
-**Files to modify:**
-- `tools/cache/sqlite_backend.py` — add counter increments to get/put/delete
-- `tools/cache/decorators.py` — add histogram/counter around tool execution
-- `tools/truncate_for_llm.py` — add counter on truncation
-- `tools/runner_utils.py` — add run-level histogram
-- `stock_analyst/agent.py` — add `after_model_callback` for token tracking
-- `server.py` — add `/metrics` endpoint
-- New: `tools/metrics.py` — central metric definitions
+### Phase 2: OTEL Collector + Distributed Tracing — PLANNED
 
-### Phase 2: OTEL Collector + Distributed Tracing
+**Goal:** Export ADK's built-in spans to an OpenTelemetry Collector, which fans out to Prometheus (metrics) and Tempo/Jaeger (traces). This provides the full request waterfall: user query → supervisor → pipeline → tools → external APIs.
 
-**Goal:** Export ADK's built-in spans to an OpenTelemetry Collector, which fans out to Prometheus (metrics) and Tempo/Jaeger (traces). This gives us the full request waterfall: user query → supervisor → pipeline → tools → external APIs.
+**Prerequisites:** `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-exporter-otlp-proto-grpc` (not yet in requirements).
 
 **Architecture:**
 
@@ -317,7 +313,7 @@ service:
 - Error correlation: trace a failed run from the user query through to the specific external API that timed out
 - Latency heatmaps across runs
 
-### Phase 3: GCP Cloud Operations (Production)
+### Phase 3: GCP Cloud Operations (Production) — PLANNED
 
 **Goal:** For Cloud Run deployment, use GCP-native exporters instead of self-hosted collector.
 
@@ -341,35 +337,36 @@ if os.getenv("GOOGLE_CLOUD_PROJECT"):
 
 ## 5. Grafana Dashboard Design
 
-### Dashboard 1: Agent Health (operational)
+### Pre-Provisioned: MarginCall Overview — IMPLEMENTED
 
-| Panel | Metric | Visualization |
+A single consolidated dashboard is auto-provisioned at `observability/grafana/dashboards/margincall-overview.json` (UID: `margincall-overview`). It covers health, cost, and tool performance in one view — 14 panels:
+
+| Panel | PromQL | Visualization |
 |-------|--------|--------------|
-| Run success rate | `margincall_runs_total` by status | Stat + time series |
-| Run latency p50/p95/p99 | `margincall_run_duration_seconds` | Heatmap |
-| Active runs | `margincall_runs_total` rate | Gauge |
-| Error rate by tool | `margincall_tool_errors_total` | Stacked bar |
+| Run Success Rate | `sum(rate(margincall_runs_total{status="success"}[5m])) / clamp_min(sum(rate(margincall_runs_total[5m])), 1)` | Gauge (green >95%, yellow >80%, red below) |
+| Cache Hit Rate | `sum(rate(margincall_cache_ops_total{result="hit"}[5m])) / clamp_min(sum(rate(margincall_cache_ops_total{operation="get"}[5m])), 1)` | Gauge (target >80%) |
+| Active SSE Connections | `margincall_active_sse_connections` | Stat |
+| Total Runs | `sum(margincall_runs_total)` | Stat |
+| Run Latency p50/p95/p99 | `histogram_quantile(0.50/0.95/0.99, ...)` on `run_duration_seconds_bucket` | Time series |
+| LLM Tokens/min | `sum by (direction) (rate(margincall_llm_tokens_total[5m]) * 60)` | Stacked area |
+| Tool Calls by Tool | `sum by (tool_name) (rate(margincall_tool_calls_total[5m]))` | Stacked time series |
+| Tool Errors by Tool | `sum by (tool_name) (rate(margincall_tool_errors_total[5m]))` | Bar chart |
+| Tool Latency p95 | `histogram_quantile(0.95, ...) by (le, tool_name)` on `tool_duration_seconds_bucket` | Time series |
+| Cache Operations/min | `sum by (operation, result) (rate(margincall_cache_ops_total[5m]) * 60)` | Stacked time series |
+| Truncation Events/min | `sum by (tool_name) (rate(margincall_truncation_total[5m]) * 60)` | Time series |
+| LLM Call Latency p50/p95 | `histogram_quantile(...)` on `llm_call_duration_seconds_bucket` | Time series |
+| Runs by Status | `sum by (status) (rate(margincall_runs_total[5m]))` | Stacked time series |
+| Cache Hit vs Miss by Tool | `sum by (tool_name, cache_hit) (rate(margincall_tool_calls_total[5m]))` | Stacked time series |
 
-### Dashboard 2: Cost & Tokens (cost engineering)
+### Future: Dedicated Dashboards (split when needed)
 
-| Panel | Metric | Visualization |
-|-------|--------|--------------|
-| Tokens per run (input vs output) | `margincall_llm_tokens_total` | Stacked time series |
-| Token cost estimate ($/hour) | `llm_tokens_total * price_per_token` | Stat with threshold |
-| Cache hit rate | `margincall_cache_ops_total{result=hit}` / total | Gauge (target: >80%) |
-| Cache savings (avoided LLM calls) | `cache_ops{result=hit}` * avg_tokens_per_miss | Stat |
-| Truncation frequency | `margincall_truncation_total` | Time series |
+As usage grows, consider splitting into focused dashboards:
 
-### Dashboard 3: Tool Performance (debugging)
+- **Agent Health** — run success/latency/errors (operational on-call view)
+- **Cost & Tokens** — token rates, cache savings, truncation frequency (cost engineering)
+- **Tool Performance** — per-tool latency/errors/cache behavior (debugging)
 
-| Panel | Metric | Visualization |
-|-------|--------|--------------|
-| Tool latency by tool | `margincall_tool_duration_seconds` | Box plot per tool |
-| Tool call distribution | `margincall_tool_calls_total` | Pie chart |
-| Cache hit/miss by tool | `margincall_tool_calls_total` by cache_hit | Stacked bar |
-| LLM inference time | `margincall_llm_call_duration_seconds` | Histogram |
-
-### Dashboard 4: Trace Explorer (Phase 2)
+### Future: Trace Explorer (Phase 2)
 
 Grafana's Tempo data source provides:
 - Search by trace ID, agent name, or tool name
@@ -394,7 +391,7 @@ Grafana's Tempo data source provides:
 
 ## 7. Token Budget Monitoring — Why Truncation Is Not an Antipattern
 
-A note on the truncation metrics: monitoring `truncation_events_total` is not about limiting the AI. It's about **managing the signal-to-noise ratio of LLM inputs** — the same way you'd monitor payload sizes for any metered API.
+A note on the truncation metrics: monitoring `truncation_events_total` is not about limiting the AI. It's about **managing the signal-to-noise ratio of LLM inputs** — analogous to monitoring payload sizes for any metered API.
 
 What truncation prevents:
 - **Cost blowup** — The TPM bloat incident sent 300-500KB per run (125K+ tokens). After truncation: 20-50KB (15-30K tokens). See [TPM Bloat Fix](how-we-fixed-llm-tpm-bloat-from-session-state.md).
@@ -406,7 +403,183 @@ What truncation does NOT do:
 - It never removes data the LLM needs for reasoning (structured metadata is preserved)
 - Tools set `truncation_applied: true` so the LLM knows data was shortened and won't hallucinate missing sections
 
-Monitoring truncation frequency tells us when upstream data sources are growing — an early warning to review field caps or add a summarization pass before it becomes a cost problem.
+Monitoring truncation frequency indicates when upstream data sources are growing — an early warning to review field caps or add a summarization pass before it becomes a cost problem.
+
+---
+
+## 8. Operations Guide
+
+### 8.1 Local Development (no Docker for MarginCall)
+
+Run MarginCall locally and only containerize the monitoring stack:
+
+```bash
+# 1. Start MarginCall
+source .venv/bin/activate
+cd MarginCall
+uvicorn server:app --host 0.0.0.0 --port 8080
+
+# 2. Verify metrics are exposed
+curl -s localhost:8080/metrics | head -20
+# Should show margincall_* metrics plus default process_* and python_* collectors
+
+# 3. Start Prometheus + Grafana (update target to host.docker.internal)
+#    Edit observability/prometheus.yml: targets: ["host.docker.internal:8080"]
+docker compose -f docker-compose.observability.yml up prometheus grafana -d
+
+# 4. Access dashboards
+#    Prometheus targets: http://localhost:9090/targets (verify "margincall" is UP)
+#    Grafana:            http://localhost:3000 (admin / margincall)
+```
+
+### 8.2 Full Stack (Docker)
+
+Run everything in containers:
+
+```bash
+docker compose -f docker-compose.observability.yml up -d
+
+# Services:
+#   MarginCall:  http://localhost:8080
+#   Prometheus:  http://localhost:9090
+#   Grafana:     http://localhost:3000 (admin / margincall)
+```
+
+The Grafana dashboard "MarginCall Overview" is auto-provisioned on first start. No manual import needed.
+
+### 8.3 Verifying Metrics
+
+After running at least one agent query, verify each metric layer:
+
+```bash
+# Tool layer: should see tool_name labels for each tool that ran
+curl -s localhost:8080/metrics | grep margincall_tool_calls_total
+
+# Cache layer: should see get/hit, get/miss, put/ok
+curl -s localhost:8080/metrics | grep margincall_cache_ops_total
+
+# Run layer: should see status="success" (or error type)
+curl -s localhost:8080/metrics | grep margincall_runs_total
+
+# LLM layer: should see direction="input" and "output" with token counts
+curl -s localhost:8080/metrics | grep margincall_llm_tokens_total
+
+# Truncation: only appears after a tool truncates data
+curl -s localhost:8080/metrics | grep margincall_truncation_total
+
+# SSE gauge: reflects currently connected log stream clients
+curl -s localhost:8080/metrics | grep margincall_active_sse_connections
+```
+
+### 8.4 Metric Storage and Retention
+
+Metrics flow through three layers:
+
+```
+MarginCall process (in-memory, resets on restart)
+    │
+    │  GET /metrics  (scraped every 15s)
+    v
+Prometheus TSDB  (prometheus_data volume, 7-day retention)
+    │
+    │  PromQL queries on demand
+    v
+Grafana  (no metric storage — queries Prometheus live)
+```
+
+- **In-process counters/histograms** are ephemeral. Process restart resets them to zero. This is expected — Prometheus stores the time series and uses `rate()` / `increase()` functions that handle counter resets gracefully.
+- **Prometheus retention** is set to 7 days (`--storage.tsdb.retention.time=7d`). Adjust in `docker-compose.observability.yml` if needed.
+- **Grafana data volume** stores only dashboard configs and user preferences, not metric data.
+
+### 8.5 Metrics Without prometheus_client
+
+The import guard in `tools/metrics.py` means uninstalling `prometheus_client` silently disables all metrics:
+
+```python
+try:
+    from prometheus_client import Counter, Gauge, Histogram
+    METRICS_ENABLED = True
+except ImportError:
+    METRICS_ENABLED = False
+```
+
+Every instrumentation point checks `METRICS_ENABLED` before recording. The app runs identically with or without the library — no performance overhead, no errors, no behavior change.
+
+### 8.6 Adding a New Metric
+
+1. Define the metric in `tools/metrics.py` inside the `if METRICS_ENABLED:` block.
+2. At the instrumentation point, use the guarded import pattern:
+   ```python
+   try:
+       from tools.metrics import METRICS_ENABLED
+       if METRICS_ENABLED:
+           from tools.metrics import your_new_metric
+           your_new_metric.labels(...).inc()
+   except Exception:
+       pass
+   ```
+3. Add a Grafana panel to `observability/grafana/dashboards/margincall-overview.json` (or create a new dashboard JSON in the same directory — it's auto-discovered).
+4. If the metric warrants an alert, add a rule to Section 6.
+
+### 8.7 Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---------|-------------|-----|
+| `curl /metrics` returns 501 | `prometheus_client` not installed | `pip install prometheus_client>=0.21.0` |
+| Prometheus target shows DOWN | MarginCall not reachable from Prometheus container | Check network config; for local dev, use `host.docker.internal:8080` as target |
+| Metrics all zero after a run | Metrics module not imported at runtime | Verify `python -c "from tools.metrics import METRICS_ENABLED; print(METRICS_ENABLED)"` prints `True` |
+| LLM token metrics missing | `after_model_callback` not firing | Verify `stock_analyst/agent.py` has `after_model_callback=_after_model_callback` on root agent; check if sub-agent LLM calls also need callbacks |
+| Grafana shows "No data" | Prometheus hasn't scraped yet or time range too narrow | Wait 15-30s, check Prometheus `/targets`, widen Grafana time range |
+| Dashboard panels show "datasource not found" | Grafana provisioning didn't load | Verify `observability/grafana/provisioning/` is mounted; restart Grafana container |
+
+### 8.8 Cloud Deployment
+
+#### AWS (ECS / EKS)
+
+**ECS with Amazon Managed Prometheus (AMP):**
+- Add Prometheus as a sidecar container in the task definition
+- Configure `remote_write` in `prometheus.yml` to push to AMP endpoint
+- Connect Amazon Managed Grafana to AMP as data source
+- Import the same `margincall-overview.json` dashboard
+
+**EKS with kube-prometheus-stack:**
+```yaml
+# ServiceMonitor for auto-discovery
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: margincall
+spec:
+  selector:
+    matchLabels:
+      app: margincall
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+```
+
+#### GCP (Cloud Run)
+
+Use ADK's native exporters (zero infrastructure):
+
+```python
+# In server.py startup or lifespan hook
+import os
+if os.getenv("GOOGLE_CLOUD_PROJECT"):
+    from google.adk.telemetry.google_cloud import get_gcp_exporters
+    get_gcp_exporters(
+        enable_cloud_tracing=True,   # → Cloud Trace
+        enable_cloud_metrics=True,   # → Cloud Monitoring
+        enable_cloud_logging=True,   # → Cloud Logging
+    )
+```
+
+For custom Prometheus metrics, Cloud Monitoring's **Managed Prometheus** can scrape the `/metrics` endpoint — same PromQL queries, same dashboard JSON.
+
+#### Portability
+
+The `/metrics` endpoint and metric names are standard Prometheus. The same PromQL queries and Grafana dashboard JSON work across local Docker, AWS, and GCP — only the scrape target configuration changes.
 
 ---
 

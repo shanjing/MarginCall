@@ -19,6 +19,7 @@ import asyncio
 import functools
 import inspect
 import logging
+import time as _time
 from datetime import date
 
 from .base import CacheBackend
@@ -30,6 +31,27 @@ def _record_tool_run(name: str, cache_hit: bool, error: str | None = None) -> No
     try:
         from tools.run_context import record_tool_execution
         record_tool_execution(name, cache_hit, error=error)
+    except Exception:  # noqa: BLE001
+        pass
+    # ── Prometheus metrics ──
+    try:
+        from tools.metrics import METRICS_ENABLED
+        if METRICS_ENABLED:
+            from tools.metrics import tool_calls_total, tool_errors_total
+            tool_calls_total.labels(tool_name=name, cache_hit=str(cache_hit)).inc()
+            if error:
+                tool_errors_total.labels(tool_name=name).inc()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _record_tool_duration(name: str, duration: float) -> None:
+    """Record tool execution time in Prometheus histogram."""
+    try:
+        from tools.metrics import METRICS_ENABLED
+        if METRICS_ENABLED:
+            from tools.metrics import tool_duration_seconds
+            tool_duration_seconds.labels(tool_name=name).observe(duration)
     except Exception:  # noqa: BLE001
         pass
 
@@ -126,11 +148,14 @@ def cached(
                         return cached_data
 
                 # Cache miss → call the actual function
+                _t0 = _time.perf_counter()
                 try:
                     result = await func(*args, **kwargs)
                 except Exception as e:
+                    _record_tool_duration(func.__name__, _time.perf_counter() - _t0)
                     _record_tool_run(func.__name__, False, error=str(e)[:500])
                     raise
+                _record_tool_duration(func.__name__, _time.perf_counter() - _t0)
                 err_msg = isinstance(result, dict) and _error_from_result(result)
                 _record_tool_run(func.__name__, False, error=err_msg)
 
@@ -189,11 +214,14 @@ def cached(
                                 return cached_data
 
                         # Cache miss → call the actual function
+                        _t0 = _time.perf_counter()
                         try:
                             result = func(*args, **kwargs)
                         except Exception as e:
+                            _record_tool_duration(func.__name__, _time.perf_counter() - _t0)
                             _record_tool_run(func.__name__, False, error=str(e)[:500])
                             raise
+                        _record_tool_duration(func.__name__, _time.perf_counter() - _t0)
                         err_msg = isinstance(result, dict) and _error_from_result(result)
                         _record_tool_run(func.__name__, False, error=err_msg)
 
@@ -220,11 +248,14 @@ def cached(
                             _record_tool_run(func.__name__, True)
                             return cached_data
 
+                    _t0 = _time.perf_counter()
                     try:
                         result = func(*args, **kwargs)
                     except Exception as e:
+                        _record_tool_duration(func.__name__, _time.perf_counter() - _t0)
                         _record_tool_run(func.__name__, False, error=str(e)[:500])
                         raise
+                    _record_tool_duration(func.__name__, _time.perf_counter() - _t0)
                     err_msg = isinstance(result, dict) and _error_from_result(result)
                     _record_tool_run(func.__name__, False, error=err_msg)
 

@@ -89,6 +89,7 @@ async def execute_agent_stream(app, input_text, initial_state=None, debug=False)
         log_session_state(curr_session.state, label="PRE-FLIGHT STATE", session_id=session_id)
 
     final_text_parts = []
+    _run_status = "success"
 
     async def _stream():
         async for event in runner.run_async(
@@ -110,6 +111,7 @@ async def execute_agent_stream(app, input_text, initial_state=None, debug=False)
         else:
             await _stream()
     except (asyncio.TimeoutError, TimeoutError) as e:
+        _run_status = "timeout"
         log_agent_failure(
             agent_name="runner",
             error_type="timeout",
@@ -120,6 +122,7 @@ async def execute_agent_stream(app, input_text, initial_state=None, debug=False)
     except Exception as e:
         err_str = str(e).lower()
         if "timeout" in err_str or "timed out" in err_str:
+            _run_status = "timeout"
             log_agent_failure(
                 agent_name="runner",
                 error_type="timeout",
@@ -128,8 +131,10 @@ async def execute_agent_stream(app, input_text, initial_state=None, debug=False)
                 exc_info=True,
             )
         elif "apiconnectionerror" in type(e).__name__.lower() or "ollama" in err_str or "500" in err_str or "litellm" in err_str:
+            _run_status = "llm_error"
             log_llm_error(message=str(e), session_id=session_id, exc_info=True)
         else:
+            _run_status = "agent_error"
             log_agent_failure(
                 agent_name="runner",
                 error_type="agent_error",
@@ -142,6 +147,15 @@ async def execute_agent_stream(app, input_text, initial_state=None, debug=False)
     finally:
         run_summary.finish_run()
         run_summary.tool_execution_registry = get_run_tool_registry()
+        # ── Prometheus metrics ──
+        try:
+            from tools.metrics import METRICS_ENABLED
+            if METRICS_ENABLED:
+                from tools.metrics import run_duration_seconds, run_total
+                run_duration_seconds.observe(run_summary.total_seconds())
+                run_total.labels(status=_run_status).inc()
+        except Exception:  # noqa: BLE001
+            pass
         final_session = await session_service.get_session(
             app_name=app.name,
             user_id=user_id,

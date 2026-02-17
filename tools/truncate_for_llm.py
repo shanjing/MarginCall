@@ -17,6 +17,17 @@ from typing import Any
 
 from tools.logging_utils import logger
 
+
+def _inc_truncation_metric(tool_name: str) -> None:
+    """Increment Prometheus truncation counter."""
+    try:
+        from tools.metrics import METRICS_ENABLED
+        if METRICS_ENABLED:
+            from tools.metrics import truncation_events_total
+            truncation_events_total.labels(tool_name=tool_name).inc()
+    except Exception:  # noqa: BLE001
+        pass
+
 # Context var: set to True when any truncation happens (Pydantic or truncate_strings_for_llm).
 # Tools reset at start and read at end to set truncation_applied in their return.
 _truncation_occurred: contextvars.ContextVar[bool] = contextvars.ContextVar(
@@ -73,6 +84,7 @@ def truncate_string_to_bytes(
     truncated = allowed.decode("utf-8", errors="ignore").rstrip() + suffix + signal_tail
     truncated_size = len(truncated.encode("utf-8"))
     _set_truncation_occurred()
+    _inc_truncation_metric(context or "unknown")
     logger.info(
         "Truncation: dataset=%s original_bytes=%s truncated_bytes=%s",
         context or "unknown",
@@ -97,6 +109,7 @@ def _truncate_string(
     msg = OVER_LIMIT_TEMPLATE.format(size=len(encoded), max_bytes=max_bytes)
     _set_truncation_occurred()
     dataset = f"{tool_name or 'tool'}.{path}" if path else (tool_name or "tool")
+    _inc_truncation_metric(dataset)
     logger.info(
         "Truncation: dataset=%s original_bytes=%s truncated_bytes=%s",
         dataset,

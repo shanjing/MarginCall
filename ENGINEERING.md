@@ -227,41 +227,26 @@ The `tools/config.py` module resolves cloud vs. local at import time. Agents use
 
 ## 6. Observability
 
-### Structured Logging
+Full design and implementation details: [docs/ObservabilityStrategy.md](docs/ObservabilityStrategy.md).
 
-Every tool execution is recorded with:
-- Tool name, cache hit/miss, error (if any)
-- Duration tracking via `RunSummaryCollector`
-- Truncation events logged with dataset path and byte sizes
+### Prometheus Metrics — Implemented
 
-```
-INFO  Cache HIT: AAPL:price:2026-02-16
-INFO  Cache MISS: AAPL:financials:2026-02-16
-INFO  Truncation: dataset=fetch_reddit.posts[0].snippet original_bytes=4200 truncated_bytes=500
-```
+`GET /metrics` exposes 10 metrics: cache ops, tool calls/duration/errors, truncation events, run duration, runs by status, LLM tokens, LLM call latency, active SSE connections. Defined in `tools/metrics.py` with import guard (graceful no-op if `prometheus_client` is absent).
 
-### Real-Time Log Streaming
+### Grafana
 
-The FastAPI server streams logs to the frontend via **Server-Sent Events (SSE)**:
+Pre-provisioned dashboard at `observability/grafana/dashboards/margincall-overview.json` — run success rate, cache hit rate, tool latency/errors, token usage. Use `docker compose -f docker-compose.observability.yml up prometheus grafana` for local monitoring.
 
-- Thread-safe queue collects log records from all threads
-- Async broadcast consumer pushes to connected SSE clients
-- **400-line replay buffer** — new clients see recent context, not a blank screen
-- Heartbeat mechanism prevents browser timeout on idle connections
+### Logging & Streaming
 
-### Run Summary
+- **Structured logging** — Tool name, cache hit/miss, truncation events (dataset path + byte sizes)
+- **SSE log streaming** — 400-line replay buffer, heartbeat to prevent timeout
+- **RunSummaryCollector** — Per-run report: tools invoked, duration, cache ratio
 
-After each agent run, `RunSummaryCollector` reports:
-- Which tools were invoked and their duration
-- Which tools were skipped and why
-- Total wall-clock time
-- Cache hit ratio for the run
+### Next Phase
 
-### Designed For (Next Phase)
-
-- **Prometheus `/metrics` endpoint** — cache hit rate, tool latency p50/p99, token count per run, error rate by tool
-- **AgentOps integration** — third-party agent observability
-- **OpenTelemetry distributed tracing** — trace a request through supervisor → pipeline → tools → external APIs
+- **OpenTelemetry Collector** — Export ADK spans to Tempo/Jaeger for distributed tracing
+- **GCP Cloud Operations** — Native exporters for Cloud Run (Trace, Monitoring, Logging)
 
 ---
 
@@ -337,15 +322,15 @@ Full pipeline execution with debug logging and thought traces. Used for manual v
 | 1 | CI/CD (GitHub Actions) | Lint + test + Docker build + push on every PR |
 | 2 | Cloud Run deployment pipeline | Tag-based deploys, zero-downtime |
 | 3 | Redis cache backend | Required for multi-instance Cloud Run (shared cache) |
-| 4 | Prometheus `/metrics` endpoint | Cache hit rate, tool latency, token count, error rate |
-| 5 | OpenTelemetry tracing | Trace requests through the full agent pipeline |
-| 6 | Parallel tool execution | `stock_data_collector` tools can run concurrently (independent data sources) |
+| 4 | OpenTelemetry Collector + tracing | Trace requests through the full agent pipeline (Prometheus + Grafana done) |
+| 5 | Parallel tool execution | `stock_data_collector` tools can run concurrently (independent data sources) |
 
 ---
 
 ## Deep Dives
 
 - [Cache Strategy](docs/CacheStrategy.md) — Pluggable backend design, migration path, schema
+- [Observability Strategy](docs/ObservabilityStrategy.md) — Prometheus metrics, Grafana dashboards, OTEL roadmap
 - [TPM Bloat Fix](docs/how-we-fixed-llm-tpm-bloat-from-session-state.md) — How base64 charts nearly bankrupted the token budget
 - [Token Bloat Prevention](docs/how-to-prevent-datasets-bloat-llm-deep-dive-part1.md) — Systematic approach to LLM context management
 - [Error Handling Plan](docs/ERROR_HANDLING_AND_LOGGING_PLAN.md) — Structured logging and error patterns
