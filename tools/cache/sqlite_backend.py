@@ -19,6 +19,17 @@ from .base import CacheBackend
 
 logger = logging.getLogger(__name__)
 
+
+def _inc_cache_metric(operation: str, result: str) -> None:
+    """Increment Prometheus cache operation counter."""
+    try:
+        from tools.metrics import METRICS_ENABLED
+        if METRICS_ENABLED:
+            from tools.metrics import cache_operations_total
+            cache_operations_total.labels(operation=operation, result=result).inc()
+    except Exception:  # noqa: BLE001
+        pass
+
 # Default DB path: MarginCall/cache/MarginCall_cache.db
 _DEFAULT_DB_DIR = (
     Path(os.path.dirname(os.path.abspath(__file__))).parent.parent / "cache"
@@ -104,8 +115,10 @@ class SQLiteCacheBackend(CacheBackend):
             ).fetchone()
         if row is None:
             logger.debug("Cache MISS: %s", key)
+            _inc_cache_metric("get", "miss")
             return None
         logger.info("Cache HIT: %s", key)
+        _inc_cache_metric("get", "hit")
         return row[0]
 
     async def put(
@@ -146,6 +159,7 @@ class SQLiteCacheBackend(CacheBackend):
             )
             conn.commit()
         logger.info("Cache PUT: %s (TTL=%ds)", key, ttl_seconds)
+        _inc_cache_metric("put", "ok")
 
     async def delete(self, key: str) -> None:
         """Delete a single cache entry."""
@@ -173,6 +187,7 @@ class SQLiteCacheBackend(CacheBackend):
             deleted = cursor.rowcount
             conn.commit()
         logger.info("Cache INVALIDATE ticker=%s, deleted=%d entries", ticker, deleted)
+        _inc_cache_metric("invalidate", "ok")
         return deleted
 
     async def purge_expired(self) -> int:
