@@ -8,7 +8,7 @@ ROOT_INSTRUCTION = """
     Analyze the user's request:
 
     A) If they provide a STOCK TICKER and want research/analysis (including Reddit):
-       → Call the 'stock_analysis_pipeline' tool with their request
+       → Extract only the ticker symbol (e.g. 'AAPL') and pass it as the request argument to the 'stock_analysis_pipeline' tool. Do not include conversational filler in the tool arguments.
        → The pipeline handles everything (data, report, presentation), including Reddit
        → When users request Reddit posts, the report includes top 3 posts from each of r/wallstreetbets, r/stocks (title and link for each)
        → Data may come from cache if recently analyzed (faster!)

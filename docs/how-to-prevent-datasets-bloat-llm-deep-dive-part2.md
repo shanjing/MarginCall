@@ -4,7 +4,7 @@
 
 ---
 
-**Part 1** ([How to Prevent Datasets Bloat LLM, Part 1](how-to-prevent-datasets-bloat-llm-deep-dive-part1.md)) covered stripping chart base64 from tool returns. **Part 2** (this document) addresses *all* remaining sources of context bloat: unbounded strings from Reddit, search results, financials, and malformed API responses. The document describes the problem, the risk matrix, the two-layer fix (Pydantic schema checks + a last-resort truncation pass), how the LLM is informed when data was shortened, logging, and takeaways.
+**Part 1** ([How to Prevent Datasets Bloat LLM, Part 1](how-to-prevent-datasets-bloat-llm-deep-dive-part1.md)) covered stripping chart base64 from tool returns. **Part 2** (this document) addresses *all* remaining sources of context bloat. Those are unbounded strings from Reddit, search results, financials, and malformed API responses. The document describes the problem, the risk matrix, the two-layer fix (Pydantic schema checks plus a last-resort truncation pass), how the LLM is informed when data was shortened, logging, and takeaways.
 
 ---
 
@@ -12,17 +12,17 @@
 
 ### The Problem
 
-This issue appears in **all agentic patterns**, especially multi-agent workflows: whenever data is passed to the next hop — from a tool to an agent, or from one agent to another — unbounded payloads can blow context and cost. It is not specific to MarginCall; it is a factor to consider in any agent design where tool results or agent outputs feed the next step.
+This issue appears in **all agentic patterns**, especially multi-agent workflows. Whenever data is passed to the next hop — from a tool to an agent, or from one agent to another — unbounded payloads can blow context and cost. It is not specific to MarginCall. It is a factor to consider in any agent design where tool results or agent outputs feed the next step.
 
-In MarginCall, tool outputs are merged into `session.state` (e.g. `stock_data`) and passed to the report synthesizer. If any tool returns unbounded or unexpectedly large strings:
+In MarginCall, tool outputs are merged into `session.state` (e.g. `stock_data`) and passed to the report synthesizer. If any tool returns unbounded or unexpectedly large strings, then:
 
 - **Token count explodes** — e.g. a single Reddit post body with 70K characters of `\n` can blow the prompt to 70K+ tokens.
 - **Downstream validation fails** — the report synthesizer expects a single JSON object; if the model’s reply is cut off mid-string, `StockReport.model_validate_json(...)` raises and the run fails.
 - **Cost and latency** — larger context means higher TPM usage and slower responses (as in Part 1).
 
-Relying on *prompt instructions* alone (e.g. “limit to 3 articles, 300 chars”) does not help: the **full** tool response is already in the LLM’s context before the model “decides” to trim. Truncation must happen **at the tool level**, before data is injected into the LLM.
+Relying on *prompt instructions* alone (e.g. “limit to 3 articles, 300 chars”) does not help. The **full** tool response is already in the LLM’s context before the model “decides” to trim. Truncation must happen **at the tool level**, before data is injected into the LLM.
 
-A second issue: **silent truncation** is worse than large context. Shortening content without telling the model can lead it to assume it has the full picture and give misleading analysis. The LLM must **always know when it is working with incomplete data**.
+A second issue is **silent truncation**. It is worse than large context. Shortening content without telling the model can lead it to assume it has the full picture and give misleading analysis. The LLM must **always know when it is working with incomplete data**.
 
 ### Goals
 

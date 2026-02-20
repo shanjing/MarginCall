@@ -4,13 +4,13 @@
 
 ---
 
-## A Problem That's Easy to Miss
+## A Problem That Is Easy to Miss
 
-A multi-agent stock analysis system fetches price data, financials, technical charts, sentiment, options, Reddit posts, and news, then synthesizes everything into a polished report. It works — until API bills climb, responses slow down, and rate limits start to bite.
+MarginCall has a multi-agent stock analysis system. It fetches price data, financials, technical charts, sentiment, options, Reddit posts, and news. Then it synthesizes everything into a polished report. It works — until API bills climb, responses slow down, and rate limits start to bite.
 
-The cause: **100–500KB of base64-encoded chart images** were being sent to the LLM on every run. Twice.
+The cause was: **100–500KB of base64-encoded chart images** were being sent to the LLM on every run. Twice.
 
-In any pipeline where tool results or agent state are forwarded to the next step, oversized payloads have the same effect: they inflate context, cost, and latency. This note describes how that was found and fixed in **MarginCall**, an open-source stock research agent built with the Google Agent Development Kit (ADK) — the same principle applies to other agentic and multi-agent designs.
+In any pipeline where tool results or agent state are forwarded to the next step, oversized payloads have the same effect. They inflate context, cost, and latency. This note describes how that was found and fixed in **MarginCall**, an open-source stock research agent built with the Google Agent Development Kit (ADK). The same principle applies to other agentic and multi-agent designs.
 
 ---
 
@@ -204,7 +204,7 @@ report_synthesizer
 
 4. **Cache for consumers, strip for the model** — Cache the full payload for APIs and UIs. Return a trimmed version to the agent.
 
-5. **The report synthesizer didn't need the charts** — It only needed RSI, MACD, SMA signals. Pixels were being sent for no reason. Always ask: *what does the model actually need?*
+5. **The report synthesizer did not need the charts** — It only needed RSI, MACD, SMA signals. Pixels were being sent for no reason. Always ask: *what does the model actually need?*
 
 ---
 

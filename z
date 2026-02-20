@@ -1,0 +1,2 @@
+I have a production service I’m deploying that spans multiple repositories with their own docker-compose files. They each have their own application stack hosted across multiple machines (just 1 instance so low bandwidth tolerant service). Everything is deployed, but I’m running into some issues. 
+1. Some runtime logic is constructing absolute URLs using the staging domain instead of the current production domain. As a result, images won’t load because they’re prefixed with stg. When it shouldn’t be there.

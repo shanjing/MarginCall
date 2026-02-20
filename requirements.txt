@@ -3,7 +3,7 @@ google-genai>=1.55.0
 litellm>=1.66.3
 
 # --- Framework ---
-google-adk[database]==1.21.0
+google-adk[database,eval]==1.21.0
 
 # --- Infrastructure ---
 greenlet>=3.3.1

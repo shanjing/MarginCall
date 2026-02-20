@@ -1,0 +1,224 @@
+{
+  "eval_set_id": "reddit_tsla",
+  "name": "reddit_tsla",
+  "eval_cases": [
+    {
+      "eval_id": "reddit_tesla",
+      "conversation": [
+        {
+          "invocation_id": "e-e8377e1d-2e9f-4941-a330-91d2af39ef5b",
+          "user_content": {
+            "parts": [
+              {
+                "text": "tell me about AAPL"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Alright, here's the rundown on AAPL, straight from the wire:\n\nApple's currently trading at $263.88, a Mega Cap in the tech sector with a market cap of $3.88 trillion. The company shows robust financials, with strong year-over-year revenue and net income growth. However, technicals suggest a short-term bearish trend.\n\nMarket sentiment is mixed: strong bullish signals from StockTwits and a low Put/Call Ratio are offset by a 'Fear' rating from the CNN Fear & Greed Index and elevated VIX levels. Options flow leans bullish with low put/call ratios, though some unusual put activity has been flagged. Max pain is at $242.50.\n\nRecent news highlights stock gains driven by bullish analyst notes and AI prospects, despite concerns about AI feature delays. Reddit chatter points to optimism about AAPL revisiting $275 and discussions around recent quarterly revenue of $143.8 billion.\n\nThe next earnings date is 2026-04-30.\n\nGiven the mixed signals, the current rating is **Neutral** with 65% confidence. Apple shows solid financial strength and positive social sentiment, but faces some technical headwinds and broader market apprehension. Keep an eye on those upcoming AI announcements and quarterly performance.",
+                "thought_signature": "CuMEAb4-9vvhXX753r-Ywm7FENn9T27Vw1ZiAjVyM155EwoCDd-QxpScgmeWkVmfkR0jf_lQG6ZaoEHjU6DiUEVZp5X3hJJs67nMTlURWtSB8z55vhS0tSafX6ybySJknQ1gtuHW6XbE1TDj-d2WSZ5UejI6DgsB3uu2lNeGVjt8Uodqhh-j-2k8HIYf3HK5uugCq16s-BMt0nDGc7_z2CNNcgc7koOiLG56br0S__ja5hE8gCvwu1ZkTPauw8LgQ0ylTz3gyXAD5Fv9_wjnu5BL65i07USFredjI8OflVIzkumDEkQqwhbVP0q2QgF6thjft7lHkXgoKwCEPrUjNjOhoVf__iemT1aZA0lSE0ESRxpuarHHkyOkkLRa9ZUS0UxaTojyAO1RdnSp2V9JG_S9-aVZATCNoWAAnjVonntYDUwXR7JCk6UX6SqJDbFaBxGg8mC97WoA69NFJ0KNHZSBop41pGp9alluEsSRo9dF-UDLnTVaxArM7VigxuVGN4f1gh5XWVtAs1Y4M8Ahzgb6b3-kkew-egGmMk8a59ASECf0iXnA_BmIqahTb3r1g3MEbkljTgyoiGaIbKXgb3R5l91Ys1avfuRf0vpYe-WiH6R6d0dmr7ZPHU0Vq-TH6q7Z48Z3s1LixmAz5a-oPUKeBmIq80ch4YCleC5cvF1e8msnigVca5UjHB55wLxY1CNpmYzSh6u8dwPbqsC-lBs8lNKuvxTwOAyig_C6yUa5x_pXwiz4oM-x12xcYXSQ9_gKRyfwJt6DhdlBED2V_QuHqhUrhvU4qak3j1T1mxzYr2Wjyvs="
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {
+            "invocation_events": [
+              {
+                "author": "stock_analyst",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-1fff48a1-35c0-4f12-ad55-885594b5a610",
+                        "args": {
+                          "request": "AAPL"
+                        },
+                        "name": "stock_analysis_pipeline"
+                      },
+                      "thought_signature": "Cv0DAb4-9vtLepipKEn9UDD081a0BLueur6P_wNb5KWGBcfo9GF3BvFpTZs3CctYovacNrMUgNfp7KYIb41UyDY_Tvwd99_yb6XXOVsR9w6jVVuNwHJMgzrgcVXhTYIn1tqNev3NKL3kb-jBz-a8Zw3-mYgvlgWOjJsDyBrOu-BzqMNyRpB9Ua9LLh1OVwckTGkASv2YyDx1_6jkRN5zSQn-PDko94Zd4yCy_mv-pZAhCy2RHhgjyZN8o2V78IH6emBjFiKlOkZfM3oEsOQqCMBa3qquHJlc-aikzKpiesm_jhV9u8XEqMKYa6ZN2T3HdpLv14FfdOjctXrNpoPfNdamu1txNjkeT2KBTaYqV72S839-DdNO0ZEZDOTz3gaKrCTsuJm9BusavvLUOZ2EJvbxAX1fEJhDh5truYQZd85veymNHGmVbSqTv2YW6xM3ZdgjsqRjgbfTjhNRQmDz81aHF35S3QJd-agCB6IKekZyFGaPkNFnZTVAx4CCNbo0tXgH4YcYGeprRlCtBSW5ces8qun0VbhQaM0h3zN19wXTECPNR3i0iJDKzovFrW8cg_qRbYxZ33bLVZ1V1lVjb997q05moH0wGZ3-2GgA1WUn6fDfuXmY32U2IAM8eSMoRL-XM2PZabbjNGTLYwo1peAsUga3T2LZUF2Ny1CBYIo="
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "stock_analyst",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-1fff48a1-35c0-4f12-ad55-885594b5a610",
+                        "name": "stock_analysis_pipeline",
+                        "response": {
+                          "result": "═══════════════════════════════════════════════════════════\n\n📊 Stock Ticker: AAPL\nDate: 2026-02-17 | Analyst: Sam | DiamondHands 💎🙌 Group\n═══════════════════════════════════════════════════════════\n\n🏢 COMPANY\nApple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories globally. The company operates in the Technology sector and is classified as a Mega Cap with a market capitalization of $3.88 trillion.\n\n💰 PRICE\nAAPL is currently trading at $263.88. Technical indicators suggest a short-term bearish trend with SMA20 below SMA50, despite recent analyst optimism on AI initiatives.\n\n📈 FINANCIALS\nApple demonstrates robust financial health with strong year-over-year growth in both revenue and net income for the latest quarter, supported by substantial free cash flow and a significant market capitalization.\n\nKey metrics (show value or N/A if null):\nP/E (trailing / forward): 33.40253 / 28.423677\nRevenue (TTM): 435617005568.0 | Net income (TTM): 117776998400.0\nFree cash flow: 106312753152.0 | Operating cash flow: 135471996928.0\nMarket cap: 3878488637440.0\nLatest quarter (2025-12-31): Revenue 143756000000.0 | Net income 42097000000.0\n\n📉 TECHNICALS\nThe RSI is neutral at 46.68, while both MACD and SMA signals indicate a short-term bearish trend, with the MACD line below its signal and the 20-day SMA below the 50-day SMA.\n\n📊 CHARTS\n1-Year Daily Chart: AAPL_chart_1y\n90-Day Daily Chart: AAPL_chart_3mo\n(Charts displayed by frontend via /api/charts)\n\n🌡️ MARKET SENTIMENT (4 indicators)\nMarket sentiment for AAPL is mixed, with strong bullish signals from StockTwits and Put/Call Ratio offset by a 'Fear' rating from the CNN Fear & Greed Index and elevated VIX levels.\nCNN Fear & Greed: 37 (Fear)\nVIX: 20.29 (FEAR)\nStockTwits: STRONG_BULLISH (ratio: 0.89)\nPut/Call Ratio: 0.517 (BULLISH)\nOverall: MIXED\n\n🎰 OPTIONS (Short-term Volatility)\nPut/Call Ratio: 0.517 vol / 0.58 OI — BULLISH\nMax Pain: $242.50 (8.82% from current price)\nIV: 30.32% | HV30: 29.18% | IV Rank: 34 — FAIR\nUnusual Activity: 34 contracts flagged\nThere are 34 contracts with unusual volume/OI, predominantly on the put side, with the highest ratio on a $120 call.\nOptions flow appears bullish with low put/call ratios in both open interest and volume. Max pain is significantly below the current price, at $242.50. Implied volatility is fair compared to historical volatility, though 34 unusual contracts were noted, with a lean towards put activity for specific strikes.\n\n📰 NEWS\nRecent news highlights Apple's stock gains driven by bullish analyst notes and AI prospects, despite ongoing concerns about AI feature delays and their market impact.\n\nRecent Articles:\n• AAPL News Today | Why did Apple stock go up today? - MarketBeat (February 17 2026)\n  Apple (AAPL) shares gained today on bullish analyst notes and AI headlines, despite AI delay concerns.\n  🔗 https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHfF8pAbt_RpoelgHBoXEpDpJ0O0fHaK2_rmbJR_vCIPd-hZnaoaG4ptqWuVMlZm0rnJXtKI1WDzdMaU6W8SGmxpb5yrMUr-K-Gir-cpzOjGnZFZuaNiQ21alqeCGVN8Nmu4sNfYfYNsW-QKU7mjg==\n• Stock Market Today, Feb. 17: Apple Rebounds as AI Strategy Heads Into High-Profile March Event - The Motley Fool (February 17 2026)\n  Apple rebounded as an analyst expressed confidence in its AI outlook; attention on Siri upgrades and a March event.\n  🔗 https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFLj59QZolo3foB2mdD9y_mgotLf9owPae6jFiJc4nscDSty1DA1ypDoXT14Yt4iouMMs2dlbQZfK9g8NVI6_JiVGKk0W_fHIoafrKuC90e-7KuXfIn-Wofg1YJcWMlI8OEfg==\n• Apple Stock (AAPL) Opinions on AI Upgrade Delays - Quiver DiscussionTracker (February 17, 2026)\n  Discussions highlight Apple's postponed Siri/AI features, linked to a $200 billion market cap loss in tech rout.\n  🔗 https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQH1SNj5E0R5Xo_TDP8AA5ei45Efla1QhoGkpp9vK_V0zD3-dxEacYyOX6oAE1JfT4qANqjwiemQWXkktrgcz_lxGPgx4EJkFtche-HoKh7fPlBd8RCFyB_Ou28rHSyo1FFvJhdecEckF1xat-mbJzDUMxzfH48yz35D7P0L1F7W5T6rpCWQ0y9Lqdguq5Yn7Yk==\n\n📱 REDDIT (r/wallstreetbets, r/stocks)\n• r/wallstreetbets AAPL will revisit $275 in the next 2 weeks\n  You can always count on the king of all stocks\n  🔗 https://www.reddit.com/r/wallstreetbets/comments/1q7qml2/aapl_will_revisit_275_in_the_next_2_weeks/\n• r/wallstreetbets Someone just sold $6,560,000 worth of $AAPL 260 puts\n  Thoughts?\n  🔗 https://www.reddit.com/r/wallstreetbets/comments/1o0jvlo/someone_just_sold_6560000_worth_of_aapl_260_puts/\n• r/stocks AAPL Quarterly Revenue $143.8 billion (up 15.7% YoY)\n  AAPL Q1 2026 (Oct-Dec 2025) Quarterly Results Revenue = $143.8 billion (up 15.7% YoY).\n  🔗 https://www.reddit.com/r/stocks/comments/1qqlw14/aapl_quarterly_revenue_1438_billion_up_157_yoy/\n\n═══════════════════════════════════════════════════════════\n\n📅 EARNINGS\nNext Earnings Date: 2026-04-30 (72 days away)\n\n🎯 RATING: Neutral (65% confidence)\nThe neutral recommendation stems from mixed market sentiment and a balanced individual stock performance, with strong financials offset by bearish technical signals.\n\n═══════════════════════════════════════════════════════════\n\n💡 CONCLUSION\nAAPL exhibits solid financial strength and positive social sentiment, yet faces short-term technical headwinds and broader market apprehension. Investors should monitor upcoming AI strategy announcements and quarterly performance closely. The stock presents a neutral outlook for now.\n\n═══════════════════════════════════════════════════════════\n\"The only way they're gonna find out is if we tell 'em.\" - Jared Vennett (The Big Short)\n[For entertainment only. Not financial advice. Do your own research.]\n[Model: 'gemini-2.5-flash']"
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              }
+            ]
+          },
+          "creation_timestamp": 1771371266.520483
+        },
+        {
+          "invocation_id": "e-c5f39a95-2fbb-4e6f-bbeb-818b5376ffe6",
+          "user_content": {
+            "parts": [
+              {
+                "text": "Reddit post for TSLA"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "text": "Alright, here's what Reddit is saying about TSLA:\n\n**From r/wallstreetbets:**\n\n*   **$600,000 in short dated TSLA puts**\n    *   *Snippet:* \"Started with $8,500 in 2023. Thinking either 1 million if TSLA goes back below 400 in the next two days, or oblivion.\"\n    *   *Link:* https://www.reddit.com/r/wallstreetbets/comments/1r0i9on/600000_in_short_dated_tsla_puts/\n*   **TSLA PUT @420 Exp 8 days**\n    *   *Snippet:* \"Well, lets hope this goes somewhere - otherwise my venture into degenerate option trading was short and fruitless lol. EDIT: I closed it with a profit of $500 (~100%).\"\n    *   *Link:* https://www.reddit.com/r/wallstreetbets/comments/1r2wg5h/tsla_put_420_exp_8_days/\n*   **Elon is not becoming a trillionaire anytime soon...**\n    *   *Snippet:* \"Tesla barely delivered 418k Q4 ’25 and the consensus on Polymarket is its going to be less than 350k this quarter, likely much lower than 350K.\"\n    *   *Link:* https://www.reddit.com/r/wallstreetbets/comments/1qp1kwh/elon_is_not_becoming_a_trillionaire_anytime_soon/\n\n**From r/stocks:**\n\n*   **Fool me once TSLA...**\n    *   *Snippet:* \"I'm just gonna let the quotes and dates speak for themselves here: - \\\"I feel very confident predicting autonomous robotaxis for Tesla next year\\\" -Musk, April... 2019(!)\"\n    *   *Link:* https://www.reddit.com/r/stocks/comments/1qpt84a/fool_me_once_tsla/\n*   **Tesla (TSLA) accounting raises red flags as report shows $1.4 billion missing**\n    *   *Snippet:* \"“Tesla’s (TSLA) accounting practices are raising red flags as a new report from the Financial Times shows that $1.4 billion is missing.\"\n    *   *Link:* https://www.reddit.com/r/stocks/comments/1jfn3wn/tesla_tsla_accounting_raises_red_flags_as_report/\n*   **TSLA investors, beware**\n    *   *Snippet:* \"Trump's support of Tesla is a desperate and last ditch effort to save the falling stock. This is a pump and dump.\"\n    *   *Link:* https://www.reddit.com/r/stocks/comments/1j9qzgg/tsla_investors_beware/"
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {
+            "invocation_events": [
+              {
+                "author": "stock_analyst",
+                "content": {
+                  "parts": [
+                    {
+                      "function_call": {
+                        "id": "adk-d3043ef8-c2ab-409c-b217-5243d2831755",
+                        "args": {
+                          "ticker": "TSLA"
+                        },
+                        "name": "fetch_reddit"
+                      },
+                      "thought_signature": "CrIEAb4-9vtf03Zsl6qQN96t3q4vj3-ltil8U_P7TLYSMKixXWBrPXUMI4YRFBuWIGgaE3tBX_s_7oBWrPPmfe4XN04X5lgIT811O4X2pi8e3YeQLPKF0G6LDIsairNXC1JwNz_Y5LBvyX8dwmXd_AfKiFTaKgptADLT_J3rnYXtUhXsiy8g2mhMe3LZB0Am25LafWPDteH7Jaf9ayTv8i6lvVZYR8OXtOGYoszZJNLDSFBtVhmEIn3CxPWoSGYW6eVQiE-ZXhe5M5vL7UFLBvQdXEP90zEQUD3lTktY9csWZsGq9qr3K2jO2uMXe1jhsnCXn8mRvLgv91TStdUN6G1ziT1noFR7KCExqTdi_mf9auSNudB0tlIc5VUH2zdf16F_wJADtxvec4h9JP3EhXEgEIFQ--ZlbrHEMCqxjCfFWrthjXARn40QisbQUThespjbx00E_bq0FRDS5Pgv-lFntDDlAN6jjfbQSv4PIc8eNhKAO-z6si4tCpHfvVMQTPM6lWBLGP4mKmUBly3uoxDJJDlUKc6HMNbrnCl6JTvikviHf96xjlgE6x5VnQNZjMx5m4_ETY7JUhHPYEIyY5gPWZXWo9Ak1Lw18mXKJqDmOsuRoIafzeCNYTc8CFeYar91ofgvJOBkjtLzx22c1H8jek-cxVhYO50fANYuCgiZCHJgQxhJDqTOECI2KvFu2ZWK2JxPyGMvjOjtCd3uP9aou_oeGBIUxaPV0tLUVWWyNr7m5A=="
+                    }
+                  ],
+                  "role": "model"
+                }
+              },
+              {
+                "author": "stock_analyst",
+                "content": {
+                  "parts": [
+                    {
+                      "function_response": {
+                        "id": "adk-d3043ef8-c2ab-409c-b217-5243d2831755",
+                        "name": "fetch_reddit",
+                        "response": {
+                          "status": "success",
+                          "ticker": "TSLA",
+                          "posts": [
+                            {
+                              "subreddit": "r/wallstreetbets",
+                              "title": "$600,000 in short dated TSLA puts",
+                              "url": "https://www.reddit.com/r/wallstreetbets/comments/1r0i9on/600000_in_short_dated_tsla_puts/",
+                              "snippet": "Started with $8,500 in 2023. Thinking either 1 million if TSLA goes back below 400 in the next two days, or oblivion. I did set six figures aside already from my pervious trades (posted those too) so I'll be sort of alright if this goes to 0, so yall don't need to send Reddit Cares after me again."
+                            },
+                            {
+                              "subreddit": "r/wallstreetbets",
+                              "title": "TSLA PUT @420 Exp 8 days",
+                              "url": "https://www.reddit.com/r/wallstreetbets/comments/1r2wg5h/tsla_put_420_exp_8_days/",
+                              "snippet": "https://preview.redd.it/kgsmoqm213jg1.png?width=796&format=png&auto=webp&s=421bcee9dddd4b3e1aafd88a83f5217fac618ad3 Well, lets hope this goes somewhere - otherwise my venture into degenerate option trading was short and fruitless lol. EDIT: I closed it with a profit of $500 (\\~100%). I think I got into it when TSLA was at $429 and existed at $417. Since then it went up and down, still watching. It probably will go down more but I already experienced the joy of not taking profit a few times an..."
+                            },
+                            {
+                              "subreddit": "r/wallstreetbets",
+                              "title": "Elon is not becoming a trillionaire anytime soon...",
+                              "url": "https://www.reddit.com/r/wallstreetbets/comments/1qp1kwh/elon_is_not_becoming_a_trillionaire_anytime_soon/",
+                              "snippet": "Puts on TSLA incoming... https://preview.redd.it/r4ru3ewep0gg1.png?width=1376&format=png&auto=webp&s=83107ddd844bcd2e7d369d974283a400e2078111 Tesla barely delivered 418k Q4 ’25 and the consensus on Polymarket is its going to be less than 350k this quarter, likely much lower than 350K. https://preview.redd.it/80l1a8agp0gg1.png?width=1434&format=png&auto=webp&s=abaad0e397a03e6d014cffb9ae99a3d690743ba4 This marks the second straight year of annual sales declines. Revenue is going down, prices..."
+                            },
+                            {
+                              "subreddit": "r/stocks",
+                              "title": "Fool me once TSLA...",
+                              "url": "https://www.reddit.com/r/stocks/comments/1qpt84a/fool_me_once_tsla/",
+                              "snippet": "I'm just gonna let the quotes and dates speak for themselves here: \\- \"I feel very confident predicting autonomous robotaxis for Tesla next year\" \\-Musk, April... 2019(!) \\- \"Tesla will have over 1 million robotaxis on the road next year (2020)\" \\-Musk, also April 2019. So with that in mind, how much do you want to bet on the following statement: \\- \"Tesla's rolled out robotaxi service in a few cities, and will be very, very widespread by the end of this year within the U.S\" \\-Musk, January 2..."
+                            },
+                            {
+                              "subreddit": "r/stocks",
+                              "title": "Tesla (TSLA) accounting raises red flags as report shows $1.4 billion missing",
+                              "url": "https://www.reddit.com/r/stocks/comments/1jfn3wn/tesla_tsla_accounting_raises_red_flags_as_report/",
+                              "snippet": "“Tesla’s (TSLA) accounting practices are raising red flags as a new report from the Financial Times shows that $1.4 billion is missing. Many Tesla shorts and detractors have questioned Tesla’s accounting for years, but they have never gained much traction – until now. Today, the Financial Times has released a new report pointing to a $1.4 billion gap in assets: **Compare Tesla’s capital expenditure in the last six months of 2024 to its valuation of the assets that money was spent on..."
+                            },
+                            {
+                              "subreddit": "r/stocks",
+                              "title": "TSLA investors, beware",
+                              "url": "https://www.reddit.com/r/stocks/comments/1j9qzgg/tsla_investors_beware/",
+                              "snippet": "Trump's support of Tesla is a desperate and last ditch effort to save the falling stock. This is a pump and dump. He did that with the Trump & Melania meme coins, then with other shitcoins, and now TSLA. If you hold shares, this is your opportunity to dump them. Just my opinion. Not financial advice ;)"
+                            }
+                          ],
+                          "by_subreddit": {
+                            "r/wallstreetbets": [
+                              {
+                                "subreddit": "r/wallstreetbets",
+                                "title": "$600,000 in short dated TSLA puts",
+                                "url": "https://www.reddit.com/r/wallstreetbets/comments/1r0i9on/600000_in_short_dated_tsla_puts/",
+                                "snippet": "Started with $8,500 in 2023. Thinking either 1 million if TSLA goes back below 400 in the next two days, or oblivion. I did set six figures aside already from my pervious trades (posted those too) so I'll be sort of alright if this goes to 0, so yall don't need to send Reddit Cares after me again."
+                              },
+                              {
+                                "subreddit": "r/wallstreetbets",
+                                "title": "TSLA PUT @420 Exp 8 days",
+                                "url": "https://www.reddit.com/r/wallstreetbets/comments/1r2wg5h/tsla_put_420_exp_8_days/",
+                                "snippet": "https://preview.redd.it/kgsmoqm213jg1.png?width=796&format=png&auto=webp&s=421bcee9dddd4b3e1aafd88a83f5217fac618ad3 Well, lets hope this goes somewhere - otherwise my venture into degenerate option trading was short and fruitless lol. EDIT: I closed it with a profit of $500 (\\~100%). I think I got into it when TSLA was at $429 and existed at $417. Since then it went up and down, still watching. It probably will go down more but I already experienced the joy of not taking profit a few times an..."
+                              },
+                              {
+                                "subreddit": "r/wallstreetbets",
+                                "title": "Elon is not becoming a trillionaire anytime soon...",
+                                "url": "https://www.reddit.com/r/wallstreetbets/comments/1qp1kwh/elon_is_not_becoming_a_trillionaire_anytime_soon/",
+                                "snippet": "Puts on TSLA incoming... https://preview.redd.it/r4ru3ewep0gg1.png?width=1376&format=png&auto=webp&s=83107ddd844bcd2e7d369d974283a400e2078111 Tesla barely delivered 418k Q4 ’25 and the consensus on Polymarket is its going to be less than 350k this quarter, likely much lower than 350K. https://preview.redd.it/80l1a8agp0gg1.png?width=1434&format=png&auto=webp&s=abaad0e397a03e6d014cffb9ae99a3d690743ba4 This marks the second straight year of annual sales declines. Revenue is going down, prices..."
+                              }
+                            ],
+                            "r/stocks": [
+                              {
+                                "subreddit": "r/stocks",
+                                "title": "Fool me once TSLA...",
+                                "url": "https://www.reddit.com/r/stocks/comments/1qpt84a/fool_me_once_tsla/",
+                                "snippet": "I'm just gonna let the quotes and dates speak for themselves here: \\- \"I feel very confident predicting autonomous robotaxis for Tesla next year\" \\-Musk, April... 2019(!) \\- \"Tesla will have over 1 million robotaxis on the road next year (2020)\" \\-Musk, also April 2019. So with that in mind, how much do you want to bet on the following statement: \\- \"Tesla's rolled out robotaxi service in a few cities, and will be very, very widespread by the end of this year within the U.S\" \\-Musk, January 2..."
+                              },
+                              {
+                                "subreddit": "r/stocks",
+                                "title": "Tesla (TSLA) accounting raises red flags as report shows $1.4 billion missing",
+                                "url": "https://www.reddit.com/r/stocks/comments/1jfn3wn/tesla_tsla_accounting_raises_red_flags_as_report/",
+                                "snippet": "“Tesla’s (TSLA) accounting practices are raising red flags as a new report from the Financial Times shows that $1.4 billion is missing. Many Tesla shorts and detractors have questioned Tesla’s accounting for years, but they have never gained much traction – until now. Today, the Financial Times has released a new report pointing to a $1.4 billion gap in assets: **Compare Tesla’s capital expenditure in the last six months of 2024 to its valuation of the assets that money was spent on..."
+                              },
+                              {
+                                "subreddit": "r/stocks",
+                                "title": "TSLA investors, beware",
+                                "url": "https://www.reddit.com/r/stocks/comments/1j9qzgg/tsla_investors_beware/",
+                                "snippet": "Trump's support of Tesla is a desperate and last ditch effort to save the falling stock. This is a pump and dump. He did that with the Trump & Melania meme coins, then with other shitcoins, and now TSLA. If you hold shares, this is your opportunity to dump them. Just my opinion. Not financial advice ;)"
+                              }
+                            ]
+                          },
+                          "subreddits_queried": [
+                            "r/wallstreetbets",
+                            "r/stocks"
+                          ],
+                          "message": null,
+                          "truncation_applied": false,
+                          "_from_cache": true
+                        }
+                      }
+                    }
+                  ],
+                  "role": "user"
+                }
+              }
+            ]
+          },
+          "creation_timestamp": 1771383750.03475
+        }
+      ],
+      "session_input": {
+        "app_name": "stock_analyst",
+        "user_id": "user"
+      },
+      "creation_timestamp": 1771383808.126904
+    }
+  ],
+  "creation_timestamp": 1771383789.799396
+}
