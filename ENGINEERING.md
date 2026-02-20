@@ -2,7 +2,7 @@
 
 This document covers the architecture and infrastructure decisions behind MarginCall — a multi-agent stock research system built on Google ADK (Agent Development Kit).
 
-The engineering reflects an SRE/cloud architect's perspective: LLM calls are treated as metered, unreliable external dependencies — the same way you'd treat a database or third-party API at scale. Every design decision here maps to a core infrastructure concern: **cost control, observability, resilience, data fidelity, and horizontal scalability.**
+The engineering reflects an cloud architect's perspective: LLM calls are treated as metered, unreliable external dependencies — the same way you'd treat a database or third-party API at scale. Every design decision here maps to a core infrastructure concern: **cost control, observability, resilience, data fidelity, and horizontal scalability.** These infrastructure patterns exist to serve the agent design requirements described in **[AGENTIC_ENGINEERING.md](AGENTIC_ENGINEERING.md)** — context management demands bounded payloads, planning demands visibility, structured output demands schema contracts.
 
 ---
 
@@ -55,6 +55,8 @@ Supervisor → sequential pipeline → agent-as-tool nesting:
 LLM API calls are the most expensive dependency in this system. At scale, uncontrolled token usage is the equivalent of unoptimized database queries — it will bankrupt you before you notice.
 
 ### 3-Tier Cache
+
+(Note: The current design is for a static reporting purpose. For its sister project "MarketOrder" an equity trading agent W.I.P., "MarginCall" will provide real-time data via MCP or A2A with more dynamic caching design)
 
 Cache TTLs map to **data volatility**, not arbitrary intervals:
 
@@ -329,6 +331,7 @@ Full pipeline execution with debug logging and thought traces. Used for manual v
 
 ## Deep Dives
 
+- [Agentic Engineering](AGENTIC_ENGINEERING.md) — Agent design: context management, planning, structured output, agents vs. workflows
 - [Cache Strategy](docs/CacheStrategy.md) — Pluggable backend design, migration path, schema
 - [Observability Strategy](docs/ObservabilityStrategy.md) — Prometheus metrics, Grafana dashboards, OTEL roadmap
 - [TPM Bloat Fix](docs/how-we-fixed-llm-tpm-bloat-from-session-state.md) — How base64 charts nearly bankrupted the token budget
@@ -336,5 +339,3 @@ Full pipeline execution with debug logging and thought traces. Used for manual v
 - [Error Handling Plan](docs/ERROR_HANDLING_AND_LOGGING_PLAN.md) — Structured logging and error patterns
 
 ---
-
-Built by **[Shan Jing](https://www.linkedin.com/in/shanjing/)** — SRE/Cloud Architect. Infrastructure at Tinder and Twitter (multi-region, AWS). Now building and scaling agentic applications.

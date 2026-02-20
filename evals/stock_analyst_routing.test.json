@@ -1,0 +1,378 @@
+{
+  "eval_set_id": "margincall-stock-analyst-routing-001",
+  "name": "Stock analyst root routing and tool trajectory",
+  "description": "Eval set for MarginCall root agent: pipeline (A), chat (B), refresh (C), single-tool (D,E,F,G). Tool trajectory IN_ORDER; rubric quality.",
+  "eval_cases": [
+    {
+      "eval_id": "routing_pipeline_aapl",
+      "conversation": [
+        {
+          "invocation_id": "inv-pipeline-001",
+          "user_content": {
+            "parts": [
+              {
+                "video_metadata": null,
+                "thought": null,
+                "code_execution_result": null,
+                "executable_code": null,
+                "file_data": null,
+                "function_call": null,
+                "function_response": null,
+                "inline_data": null,
+                "text": "Tell me about AAPL"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "video_metadata": null,
+                "thought": null,
+                "code_execution_result": null,
+                "executable_code": null,
+                "file_data": null,
+                "function_call": null,
+                "function_response": null,
+                "inline_data": null,
+                "text": "An analysis of Apple (AAPL) covering company overview, price, financials, technicals, market sentiment, options, news, Reddit discussion, earnings date, and rating with conclusion."
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {"id": null, "args": {"request": "AAPL"}, "name": "stock_analysis_pipeline"}
+            ],
+            "intermediate_responses": []
+          },
+          "creation_timestamp": 0
+        }
+      ],
+      "session_input": {
+        "app_name": "MarginCall",
+        "user_id": "eval_user",
+        "state": {}
+      },
+      "creation_timestamp": 0
+    },
+    {
+      "eval_id": "routing_chat_no_tools",
+      "conversation": [
+        {
+          "invocation_id": "inv-chat-001",
+          "user_content": {
+            "parts": [
+              {
+                "video_metadata": null,
+                "thought": null,
+                "code_execution_result": null,
+                "executable_code": null,
+                "file_data": null,
+                "function_call": null,
+                "function_response": null,
+                "inline_data": null,
+                "text": "What do you think about the market?"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "video_metadata": null,
+                "thought": null,
+                "code_execution_result": null,
+                "executable_code": null,
+                "file_data": null,
+                "function_call": null,
+                "function_response": null,
+                "inline_data": null,
+                "text": "A brief personal view on the market: it is uncertain and volatile, with both risk and opportunity. The user should watch it, understand the risks, and manage risk. In-character tone."
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {
+            "tool_uses": [],
+            "intermediate_responses": []
+          },
+          "creation_timestamp": 0
+        }
+      ],
+      "session_input": {
+        "app_name": "MarginCall",
+        "user_id": "eval_user",
+        "state": {}
+      },
+      "creation_timestamp": 0
+    },
+    {
+      "eval_id": "routing_reddit_only",
+      "conversation": [
+        {
+          "invocation_id": "inv-reddit-001",
+          "user_content": {
+            "parts": [
+              {
+                "video_metadata": null,
+                "thought": null,
+                "code_execution_result": null,
+                "executable_code": null,
+                "file_data": null,
+                "function_call": null,
+                "function_response": null,
+                "inline_data": null,
+                "text": "Reddit posts for TSLA"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "video_metadata": null,
+                "thought": null,
+                "code_execution_result": null,
+                "executable_code": null,
+                "file_data": null,
+                "function_call": null,
+                "function_response": null,
+                "inline_data": null,
+                "text": "Reddit chatter and posts about TSLA from r/wallstreetbets and r/stocks with post titles and links."
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {"id": null, "args": {"ticker": "TSLA"}, "name": "fetch_reddit"}
+            ],
+            "intermediate_responses": []
+          },
+          "creation_timestamp": 0
+        }
+      ],
+      "session_input": {
+        "app_name": "MarginCall",
+        "user_id": "eval_user",
+        "state": {}
+      },
+      "creation_timestamp": 0
+    },
+    {
+      "eval_id": "routing_earnings_only",
+      "conversation": [
+        {
+          "invocation_id": "inv-earnings-001",
+          "user_content": {
+            "parts": [
+              {
+                "video_metadata": null,
+                "thought": null,
+                "code_execution_result": null,
+                "executable_code": null,
+                "file_data": null,
+                "function_call": null,
+                "function_response": null,
+                "inline_data": null,
+                "text": "When is the next earnings date for AAPL?"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "video_metadata": null,
+                "thought": null,
+                "code_execution_result": null,
+                "executable_code": null,
+                "file_data": null,
+                "function_call": null,
+                "function_response": null,
+                "inline_data": null,
+                "text": "The next earnings date for AAPL is estimated to be April 30, 2026. That's about 72 days from now."
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {"id": null, "args": {"ticker": "AAPL"}, "name": "fetch_earnings_date"}
+            ],
+            "intermediate_responses": []
+          },
+          "creation_timestamp": 0
+        }
+      ],
+      "session_input": {
+        "app_name": "MarginCall",
+        "user_id": "eval_user",
+        "state": {}
+      },
+      "creation_timestamp": 0
+    },
+    {
+      "eval_id": "routing_cache_stats",
+      "conversation": [
+        {
+          "invocation_id": "inv-cache-001",
+          "user_content": {
+            "parts": [
+              {
+                "video_metadata": null,
+                "thought": null,
+                "code_execution_result": null,
+                "executable_code": null,
+                "file_data": null,
+                "function_call": null,
+                "function_response": null,
+                "inline_data": null,
+                "text": "What stocks have we looked at?"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "video_metadata": null,
+                "thought": null,
+                "code_execution_result": null,
+                "executable_code": null,
+                "file_data": null,
+                "function_call": null,
+                "function_response": null,
+                "inline_data": null,
+                "text": "We've got data on stocks in the cache: AAPL, TSLA. Quite a lean portfolio, but we've got some intelligence there."
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {"id": null, "args": {}, "name": "search_cache_stats"}
+            ],
+            "intermediate_responses": []
+          },
+          "creation_timestamp": 0
+        }
+      ],
+      "session_input": {
+        "app_name": "MarginCall",
+        "user_id": "eval_user",
+        "state": {}
+      },
+      "creation_timestamp": 0
+    },
+    {
+      "eval_id": "routing_refresh_aapl",
+      "conversation": [
+        {
+          "invocation_id": "inv-refresh-001",
+          "user_content": {
+            "parts": [
+              {
+                "video_metadata": null,
+                "thought": null,
+                "code_execution_result": null,
+                "executable_code": null,
+                "file_data": null,
+                "function_call": null,
+                "function_response": null,
+                "inline_data": null,
+                "text": "Refresh AAPL"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "video_metadata": null,
+                "thought": null,
+                "code_execution_result": null,
+                "executable_code": null,
+                "file_data": null,
+                "function_call": null,
+                "function_response": null,
+                "inline_data": null,
+                "text": "Cache cleared and fresh data fetched for AAPL; full analysis presented."
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {"id": null, "args": {"ticker": "AAPL"}, "name": "invalidate_cache"},
+              {"id": null, "args": {"request": "AAPL"}, "name": "stock_analysis_pipeline"}
+            ],
+            "intermediate_responses": []
+          },
+          "creation_timestamp": 0
+        }
+      ],
+      "session_input": {
+        "app_name": "MarginCall",
+        "user_id": "eval_user",
+        "state": {}
+      },
+      "creation_timestamp": 0
+    },
+    {
+      "eval_id": "routing_financials_nvda",
+      "conversation": [
+        {
+          "invocation_id": "inv-financials-001",
+          "user_content": {
+            "parts": [
+              {
+                "video_metadata": null,
+                "thought": null,
+                "code_execution_result": null,
+                "executable_code": null,
+                "file_data": null,
+                "function_call": null,
+                "function_response": null,
+                "inline_data": null,
+                "text": "Financials for NVDA"
+              }
+            ],
+            "role": "user"
+          },
+          "final_response": {
+            "parts": [
+              {
+                "video_metadata": null,
+                "thought": null,
+                "code_execution_result": null,
+                "executable_code": null,
+                "file_data": null,
+                "function_call": null,
+                "function_response": null,
+                "inline_data": null,
+                "text": "Financial metrics for NVDA (revenue, net income, ratios, etc.) returned."
+              }
+            ],
+            "role": "model"
+          },
+          "intermediate_data": {
+            "tool_uses": [
+              {"id": null, "args": {"ticker": "NVDA"}, "name": "fetch_financials"}
+            ],
+            "intermediate_responses": []
+          },
+          "creation_timestamp": 0
+        }
+      ],
+      "session_input": {
+        "app_name": "MarginCall",
+        "user_id": "eval_user",
+        "state": {}
+      },
+      "creation_timestamp": 0
+    }
+  ],
+  "creation_timestamp": 0
+}

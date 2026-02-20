@@ -1,5 +1,8 @@
 """
-Environment and structure sanity check for MarginCall.
+Environment and structure sanity check for agents.
+This is from 'agent_forge' tool that I built to create agents/workflows from a YAML file.
+This is toverify the environment and structure of the agents right after creation of the project.
+Can also be the first step to verify in CI/CD pipeline.
 
 Verifies:
   1. root_agent.name matches the root agent directory name.

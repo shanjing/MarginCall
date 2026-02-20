@@ -1,0 +1,8 @@
+Collecting prometheus_client
+  Downloading prometheus_client-0.24.1-py3-none-any.whl.metadata (2.1 kB)
+Downloading prometheus_client-0.24.1-py3-none-any.whl (64 kB)
+Installing collected packages: prometheus_client
+Successfully installed prometheus_client-0.24.1
+
+[notice] A new release of pip is available: 25.3 -> 26.0.1
+[notice] To update, run: pip install --upgrade pip

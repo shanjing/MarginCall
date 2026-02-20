@@ -1,0 +1,31 @@
+{
+  "criteria": {
+    "tool_trajectory_avg_score": {
+      "threshold": 1.0,
+      "match_type": 1
+    },
+    "rubric_based_final_response_quality_v1": {
+      "threshold": 0.6,
+      "rubrics": [
+        {
+          "rubric_id": "relevance",
+          "rubric_content": {
+            "text_property": "The response is relevant to the user's query and directly addresses the topic or stock ticker asked about."
+          }
+        },
+        {
+          "rubric_id": "completeness",
+          "rubric_content": {
+            "text_property": "The response provides a meaningful reply \u2014 whether data, analysis, opinion, or conversational engagement \u2014 rather than refusing or giving an empty answer."
+          }
+        },
+        {
+          "rubric_id": "persona",
+          "rubric_content": {
+            "text_property": "The response does not sound like a generic corporate chatbot. Some personality is evident, or the brevity itself is natural for the question asked."
+          }
+        }
+      ]
+    }
+  }
+}
