@@ -218,8 +218,11 @@ run_model_selection() {
   echo "  4) qwen3-coder-next:latest (local LLM, requires Ollama)"
   echo "  5) qwen3:8b (local LLM, requires Ollama)"
   echo "  6) Other models"
-  read -r -p "Enter choice [1-6]: " choice
+  echo "  7) Back to main menu (no change)"
+  read -r -p "Enter choice (1-7) [7]: " choice
+  choice="${choice:-7}"
   case "$choice" in
+    7) return 1 ;;
     1) MODE=cloud; MODEL_NAME="gemini-2.5-flash" ;;
     2) MODE=cloud; MODEL_NAME="gemini-3-pro-preview" ;;
     3) MODE=cloud; MODEL_NAME="gemini-2.5-pro" ;;
@@ -234,7 +237,7 @@ run_model_selection() {
         *) MODE=cloud ;;
       esac
       ;;
-    *) echo "Invalid choice."; exit 1 ;;
+    *) echo "Invalid choice."; return 1 ;;
   esac
   API_KEY_TYPE=ollama
   API_KEY_VAL=""
@@ -332,26 +335,37 @@ if check_venv && check_env_file && check_api_key && check_model_configured; then
   printf "${G}✓ All checks passed. Environment is already set up.${N}\n"
   get_model_display
   bash "$SCRIPT_DIR/scripts/install_venv_banner.sh" 2>/dev/null || true
-  read -r -p "Change model or API key? (y/n): " change_choice
-  case "$change_choice" in
-    [yY]|[yY][eE][sS])
-      run_model_selection
-      printf "${G}✓ Model/API key updated.${N}\n"
-      ;;
-    *)
-      printf "${G}✓ Setup complete.${N}\n"
-      ;;
-  esac
-  read -r -p "Test the agent quickly? (y/n): " test_choice
-  case "$test_choice" in
-    [yY]|[yY][eE][sS]) run_quick_test ;;
-  esac
-  read -r -p "Start the agent now? (y/n): " start_choice
-  case "$start_choice" in
-    [yY]|[yY][eE][sS]) start_agent ;;
-    *) printf "${D}Setup is complete. See README.md for how to start the agent or just run setup.sh again to start it.\nTo activate the virtual environment :\nsource .venv/bin/activate${N}\n" ;;
-  esac
-  exit 0
+  echo ""
+  # Main loop: menu until user chooses Done or Start the agent
+  while true; do
+    printf "${D}--- What should the setup do next? ---${N}\n"
+    echo "  1) Change model or API key"
+    echo "  2) Test the agent quickly"
+    echo "  3) Start the agent"
+    echo "  4) Done"
+    read -r -p "Choice (1-4) [4]: " menu_choice
+    menu_choice="${menu_choice:-4}"
+    case "$menu_choice" in
+      1)
+        run_model_selection && printf "${G}✓ Model/API key updated.${N}\n"
+        ;;
+      2)
+        run_quick_test
+        ;;
+      3)
+        start_agent
+        exit 0
+        ;;
+      4)
+        printf "${D}Setup is complete. See README.md for how to start the agent or just run setup.sh again.\nTo activate the virtual environment: source .venv/bin/activate${N}\n"
+        exit 0
+        ;;
+      *)
+        printf "${D}Invalid. Enter 1-4.${N}\n"
+        ;;
+    esac
+    echo ""
+  done
 fi
 
 # --- Fresh setup ---
@@ -594,21 +608,41 @@ else
   printf "${R}Fix any missing steps above, then run this script again if needed.${N}\n"
 fi
 
-read -r -p "Test the agent quickly? (y/n): " test_choice
-case "$test_choice" in
-  [yY]|[yY][eE][sS])
-    run_exit_test || {
-      echo ""
-      run_model_selection
-      run_exit_test
-    }
-    ;;
-esac
-
-if check_cloud_configured || check_local_configured; then
-  read -r -p "Start the agent now? (y/n): " start_choice
-  case "$start_choice" in
-    [yY]|[yY][eE][sS]) start_agent ;;
-    *) printf "${D}Setup is complete. See README.md for how to start the agent or just run setup.sh again to start it.\nTo activate the virtual environment :\nsource .venv/bin/activate${N}\n" ;;
+# Main loop: same menu as "already set up" path (borrowed from draft/setup.sh)
+while true; do
+  printf "${D}--- What should the setup do next? ---${N}\n"
+  echo "  1) Change model or API key"
+  echo "  2) Test the agent quickly"
+  echo "  3) Start the agent"
+  echo "  4) Done"
+  read -r -p "Choice (1-4) [4]: " menu_choice
+  menu_choice="${menu_choice:-4}"
+  case "$menu_choice" in
+    1)
+      run_model_selection && printf "${G}✓ Model/API key updated.${N}\n"
+      ;;
+    2)
+      run_exit_test || {
+        echo ""
+        run_model_selection
+        run_exit_test
+      }
+      ;;
+    3)
+      if check_cloud_configured || check_local_configured; then
+        start_agent
+        exit 0
+      else
+        printf "${R}You must set up a model (cloud or local) first. Choose 1 to configure.${N}\n"
+      fi
+      ;;
+    4)
+      printf "${D}Setup is complete. See README.md for how to start the agent or just run setup.sh again.\nTo activate the virtual environment: source .venv/bin/activate${N}\n"
+      exit 0
+      ;;
+    *)
+      printf "${D}Invalid. Enter 1-4.${N}\n"
+      ;;
   esac
-fi
+  echo ""
+done
