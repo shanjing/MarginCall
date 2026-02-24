@@ -1,15 +1,16 @@
-"""
-Reddit posts about a stock from r/wallstreetbets, r/stocks.
 
-- Uses Reddit's public JSON API (no OAuth). Requires a descriptive User-Agent.
-- Results are stored in the existing cache database (same as price, financials, etc.)
-  with TTL_INTRADAY (4 hours). Real-time: pass real_time=True to skip cache and
-  query Reddit; or use invalidate_cache(ticker) then run pipeline to refresh all data.
-"""
+
+
+
+
+
+
+
 
 import html
 import re
 import requests
+import time
 
 from tools.cache.decorators import TTL_INTRADAY, cached
 from tools.logging_utils import logger
@@ -25,6 +26,8 @@ from .tool_schemas import RedditPostsResult
 USER_AGENT = "MarginCallAgent/1.0 (stock research; DiamondHands)"
 DEFAULT_SUBREDDITS = ["wallstreetbets", "stocks"]
 POSTS_PER_SUB = 3
+# Only include posts created within this many days (Unix cutoff)
+POST_MAX_AGE_DAYS = 14
 # Snippet: max bytes so one post never blows up LLM context (e.g. 70K of \n)
 SNIPPET_MAX_BYTES = 500
 # Cap raw selftext before processing to avoid huge strings
@@ -56,6 +59,14 @@ def _mentions_ticker(text: str, ticker: str) -> bool:
     if not text or not ticker:
         return False
     return ticker.upper() in text.upper()
+
+
+def _post_within_days(created_utc: int, max_age_days: int) -> bool:
+    """True if post was created within the last max_age_days (created_utc is Unix seconds)."""
+    if not created_utc:
+        return False
+    cutoff = int(time.time()) - (max_age_days * 24 * 60 * 60)
+    return created_utc >= cutoff
 
 
 @cached(data_type="reddit", ttl_seconds=TTL_INTRADAY, ticker_param="ticker")
@@ -112,22 +123,30 @@ def fetch_reddit(
 
         children = data.get("data", {}).get("children", [])
         sub_posts = []
+
         for child in children:
             if len(sub_posts) >= limit_per_sub:
                 break
             post_data = child.get("data", {})
             title = post_data.get("title", "")
             selftext = post_data.get("selftext", "") or ""
+
+            if not _post_within_days(post_data.get("created_utc", 0), POST_MAX_AGE_DAYS):
+                continue
+
             # Only include posts that mention the ticker in title or body
             if not _mentions_ticker(title, ticker_upper) and not _mentions_ticker(selftext, ticker_upper):
                 continue
+            
             permalink = post_data.get("permalink", "")
             if not permalink.startswith("/"):
                 permalink = "/" + permalink
             url_str = f"https://www.reddit.com{permalink}" if permalink else ""
             if not title:
                 continue
+
             snippet = _snippet_from_selftext(selftext)
+            
             # Enforce byte limits on title/url so they never blow up context
             title_enc = title.encode("utf-8")
             if len(title_enc) > SNIPPET_MAX_BYTES:
@@ -135,6 +154,7 @@ def fetch_reddit(
             url_enc = url_str.encode("utf-8")
             if len(url_enc) > 2000:
                 url_str = url_enc[:1997].decode("utf-8", errors="ignore") + "..."
+
             entry = {
                 "subreddit": f"r/{sub}",
                 "title": title,
@@ -143,6 +163,7 @@ def fetch_reddit(
             }
             sub_posts.append(entry)
             all_posts.append(entry)
+
         by_sub[f"r/{sub}"] = sub_posts
 
     message = "Reddit isn't showing this much love." if not all_posts else None
