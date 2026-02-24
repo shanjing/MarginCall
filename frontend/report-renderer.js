@@ -1,6 +1,88 @@
 /* ── StockReport Card Renderer ────────────────────────────────── */
 "use strict";
 
+const CHART_LIGHTBOX_ID = "chart-lightbox";
+
+/**
+ * Create or return the single shared chart lightbox modal. Appends to document.body.
+ * @returns {{ overlay: HTMLElement, img: HTMLImageElement, labelEl: HTMLElement, closeBtn: HTMLElement }}
+ */
+function getOrCreateChartModal() {
+  let overlay = document.getElementById(CHART_LIGHTBOX_ID);
+  if (overlay) {
+    return {
+      overlay,
+      img: overlay.querySelector(".chart-lightbox-img"),
+      labelEl: overlay.querySelector(".chart-lightbox-label"),
+      closeBtn: overlay.querySelector(".chart-lightbox-close"),
+    };
+  }
+  overlay = document.createElement("div");
+  overlay.id = CHART_LIGHTBOX_ID;
+  overlay.className = "chart-lightbox";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Chart enlarged view");
+
+  const inner = document.createElement("div");
+  inner.className = "chart-lightbox-inner";
+
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "chart-lightbox-close";
+  closeBtn.setAttribute("aria-label", "Close");
+  closeBtn.innerHTML = "&times;";
+  inner.appendChild(closeBtn);
+
+  const labelEl = document.createElement("div");
+  labelEl.className = "chart-lightbox-label";
+  inner.appendChild(labelEl);
+
+  const img = document.createElement("img");
+  img.className = "chart-lightbox-img";
+  img.alt = "";
+  inner.appendChild(img);
+
+  overlay.appendChild(inner);
+  document.body.appendChild(overlay);
+
+  closeBtn.addEventListener("click", closeChartModal);
+  overlay.addEventListener("click", function (e) {
+    if (e.target === overlay) closeChartModal();
+  });
+  document.addEventListener("keydown", function chartLightboxEscape(e) {
+    if (e.key === "Escape" && overlay.classList.contains("chart-lightbox-open")) {
+      closeChartModal();
+    }
+  });
+
+  return { overlay, img, labelEl, closeBtn };
+}
+
+/**
+ * Open the chart lightbox with the given image src and label.
+ * @param {string} src - Data URL or URL for the chart image
+ * @param {string} label - Chart label (e.g. "1-Year Daily")
+ */
+function openChartModal(src, label) {
+  const { overlay, img, labelEl } = getOrCreateChartModal();
+  img.src = src;
+  img.alt = label || "Chart";
+  labelEl.textContent = label || "";
+  overlay.classList.add("chart-lightbox-open");
+  document.body.style.overflow = "hidden";
+  overlay.querySelector(".chart-lightbox-close").focus();
+}
+
+function closeChartModal() {
+  const overlay = document.getElementById(CHART_LIGHTBOX_ID);
+  if (!overlay) return;
+  overlay.classList.remove("chart-lightbox-open");
+  document.body.style.overflow = "";
+  const img = overlay.querySelector(".chart-lightbox-img");
+  if (img) img.removeAttribute("src");
+}
+
 /**
  * Render a StockReport JSON object into a DOM element (dashboard card).
  * Called from app.js after detecting stock_report in session state.
@@ -72,7 +154,7 @@ function renderStockReport(r) {
   // ── Technicals ────────────────────────────────────────────────
   if (r.technicals_summary) card.appendChild(section("Technicals", r.technicals_summary));
 
-  // ── Charts (inline images from session state) ──────────────────
+  // ── Charts (inline images from session state; click to pop out) ──
   if (r.chart_images && Object.keys(r.chart_images).length > 0) {
     const chartSec = el("div", "report-section charts-section");
     chartSec.appendChild(elText("h3", "Charts"));
@@ -81,13 +163,25 @@ function renderStockReport(r) {
     for (const key of order) {
       const item = r.chart_images[key];
       if (!item || !item.src) continue;
-      const wrap = el("div", "chart-item");
+      const wrap = el("div", "chart-item chart-item-clickable");
+      wrap.setAttribute("role", "button");
+      wrap.setAttribute("tabindex", "0");
+      wrap.setAttribute("title", "Click to enlarge");
       wrap.appendChild(elText("div", item.label || key, "chart-label"));
       const img = document.createElement("img");
       img.src = item.src;
       img.alt = item.label || "Chart";
       img.loading = "lazy";
       wrap.appendChild(img);
+      wrap.addEventListener("click", function () {
+        openChartModal(item.src, item.label || key);
+      });
+      wrap.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openChartModal(item.src, item.label || key);
+        }
+      });
       grid.appendChild(wrap);
     }
     if (grid.children.length) {
