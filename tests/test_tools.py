@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -225,6 +226,8 @@ class TestFetchCnnGreedy:
 
 class TestFetchReddit:
     def test_success_with_matching_posts(self, noop_cache, mock_requests_get):
+        # created_utc within last 14 days so posts pass the recency filter
+        recent_utc = int(time.time()) - 3600
         mock_requests_get._response.json.return_value = {
             "data": {
                 "children": [
@@ -233,6 +236,7 @@ class TestFetchReddit:
                             "title": "AAPL earnings are amazing",
                             "selftext": "Apple beat expectations this quarter.",
                             "permalink": "/r/stocks/comments/abc/aapl_earnings/",
+                            "created_utc": recent_utc,
                         }
                     },
                     {
@@ -240,6 +244,7 @@ class TestFetchReddit:
                             "title": "Unrelated post about cats",
                             "selftext": "I love cats.",
                             "permalink": "/r/stocks/comments/def/cats/",
+                            "created_utc": recent_utc,
                         }
                     },
                 ]
@@ -250,7 +255,7 @@ class TestFetchReddit:
         result = fetch_reddit("AAPL", subreddits=["stocks"], _force_refresh=True)
         assert result["status"] == "success"
         assert result["ticker"] == "AAPL"
-        # Only the AAPL post should match
+        # Only the AAPL post should match (ticker + within 14 days)
         assert len(result["posts"]) >= 1
         assert any("AAPL" in p["title"] for p in result["posts"])
 
@@ -284,3 +289,27 @@ class TestFetchReddit:
             result = fetch_reddit("AAPL", subreddits=["stocks"], _force_refresh=True)
             assert result["status"] == "success"  # still returns success with empty posts
             assert len(result["posts"]) == 0
+
+    def test_posts_older_than_14_days_excluded(self, noop_cache, mock_requests_get):
+        # created_utc 20 days ago: should be filtered out even if ticker matches
+        old_utc = int(time.time()) - (20 * 24 * 60 * 60)
+        mock_requests_get._response.json.return_value = {
+            "data": {
+                "children": [
+                    {
+                        "data": {
+                            "title": "AAPL long-term hold",
+                            "selftext": "AAPL discussion.",
+                            "permalink": "/r/stocks/comments/old/aapl/",
+                            "created_utc": old_utc,
+                        }
+                    },
+                ]
+            }
+        }
+        from agent_tools.fetch_reddit import fetch_reddit
+
+        result = fetch_reddit("AAPL", subreddits=["stocks"], _force_refresh=True)
+        assert result["status"] == "success"
+        assert len(result["posts"]) == 0
+        assert result["message"] == "Reddit isn't showing this much love."
