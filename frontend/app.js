@@ -64,6 +64,41 @@ function setInputEnabled(enabled) {
   sendBtn.disabled   = !enabled;
 }
 
+/**
+ * Some local models may leak internal routing/planner prose instead of a user answer.
+ * Keep these hidden from chat bubbles so the loader/report UX stays clean.
+ */
+function isInternalRoutingText(text) {
+  if (!text) return false;
+  const t = text.toLowerCase();
+  const markers = [
+    "analyze the user's request",
+    "the user wants general research/analysis",
+    "this falls under case",
+    "identify the core intent",
+    "match intent to defined scenarios",
+    "determine the required tool",
+    "extract arguments",
+    "construct the tool call",
+    "i need to call",
+    "pass it as the request argument",
+    "stock_analysis_pipeline(",
+    "stock_analysis_pipeline tool",
+    "request=\"",
+    "request='",
+    "format the output",
+    "required json format",
+  ];
+  let hits = 0;
+  for (const marker of markers) {
+    if (t.includes(marker)) hits += 1;
+  }
+  if (hits >= 2) return true;
+  // Additional safeguard for planner leakage variants
+  if (t.includes("stock_analysis_pipeline") && (t.includes("case ") || t.includes("i need to call"))) return true;
+  return false;
+}
+
 /** Append a message bubble and return the content element (for streaming). */
 function addMessage(role, text) {
   const wrap = document.createElement("div");
@@ -320,7 +355,7 @@ async function sendMessage(text) {
           fullText += event.text;
         }
         // Render progressively so simple (non-report) answers show immediately
-        if (fullText) {
+        if (fullText && !isInternalRoutingText(fullText)) {
           agentContent.innerHTML = DOMPurify.sanitize(marked.parse(fullText));
           scrollToBottom();
         }
@@ -330,7 +365,7 @@ async function sendMessage(text) {
     addSystemMessage("Connection error: " + err.message);
   } finally {
     // Stream done — render accumulated text (replaces the hourglass)
-    if (fullText) {
+    if (fullText && !isInternalRoutingText(fullText)) {
       agentContent.innerHTML = DOMPurify.sanitize(marked.parse(fullText));
     } else {
       agentContent.innerHTML = "";
@@ -381,6 +416,10 @@ async function sendMessage(text) {
     }
   } catch (_) { /* ignore */ }
   if (!agentMessagePersisted) {
+    if (isInternalRoutingText(fullText)) {
+      addSystemMessage("The model returned internal routing text instead of a final answer. Please retry, or switch to a stronger tool-calling model.");
+      return;
+    }
     persistMessage({ role: "agent", text: fullText });
   }
 }
