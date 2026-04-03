@@ -195,7 +195,45 @@ run_exit_test() {
   return 1
 }
 
+# Free TCP listen port (default 8080) so uvicorn can bind on start/restart.
+# Only targets processes in LISTEN state on that port (typical stale MarginCall / other servers).
+kill_listeners_on_port() {
+  local port="${1:-8080}"
+  local pids
+
+  if ! command -v lsof &>/dev/null; then
+    printf "${W}  lsof not found; cannot pre-check port %s (if bind fails, free the port manually).${N}\n" "$port"
+    return 0
+  fi
+
+  pids=$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+  if [[ -z "$pids" ]]; then
+    return 0
+  fi
+
+  printf "${W}  Port %s is in use; stopping listener(s): %s${N}\n" "$port" "$(echo "$pids" | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
+  # Intentional word-split: multiple PIDs from lsof
+  # shellcheck disable=SC2086
+  kill $pids 2>/dev/null || true
+  sleep 1
+
+  pids=$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)
+  if [[ -n "$pids" ]]; then
+    printf "${W}  Port %s still busy; sending SIGKILL ...${N}\n" "$port"
+    # shellcheck disable=SC2086
+    kill -9 $pids 2>/dev/null || true
+    sleep 1
+  fi
+
+  if lsof -tiTCP:"$port" -sTCP:LISTEN &>/dev/null; then
+    printf "${R}  ✗ Could not free port %s. Stop the process manually, then try again.${N}\n" "$port"
+    return 1
+  fi
+  printf "${G}  ✓ Port %s is available${N}\n" "$port"
+}
+
 start_agent() {
+  kill_listeners_on_port 8080 || return 1
   printf "${G}✓${N} Starting UI at ${G}http://localhost:8080${N}\n"
   (source .venv/bin/activate && uvicorn server:app --host 0.0.0.0 --port 8080) &
   UVICORN_PID=$!
@@ -336,12 +374,12 @@ if check_venv && check_env_file && check_api_key && check_model_configured; then
   get_model_display
   bash "$SCRIPT_DIR/scripts/install_venv_banner.sh" 2>/dev/null || true
   echo ""
-  # Main loop: menu until user chooses Done or Start the agent
+  # Main loop: menu until user chooses Done or Start or restart the agent
   while true; do
     printf "${D}--- What should the setup do next? ---${N}\n"
     echo "  1) Change model or API key"
     echo "  2) Test the agent quickly"
-    echo "  3) Start the agent"
+    echo "  3) Start or restart the agent"
     echo "  4) Done"
     read -r -p "Choice (1-4) [4]: " menu_choice
     menu_choice="${menu_choice:-4}"
@@ -613,7 +651,7 @@ while true; do
   printf "${D}--- What should the setup do next? ---${N}\n"
   echo "  1) Change model or API key"
   echo "  2) Test the agent quickly"
-  echo "  3) Start the agent"
+  echo "  3) Start or restart the agent"
   echo "  4) Done"
   read -r -p "Choice (1-4) [4]: " menu_choice
   menu_choice="${menu_choice:-4}"
