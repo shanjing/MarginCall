@@ -49,8 +49,15 @@ CACHE_BACKEND = os.getenv("CACHE_BACKEND", "sqlite")
 CACHE_DISABLED = os.getenv("CACHE_DISABLED", "false").lower() == "true"
 
 # Timeouts (seconds). Not too sensitive: LLM calls can be slow for large context.
-REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "120"))  # per LLM completion
-RUNNER_TIMEOUT_SECONDS = int(os.getenv("RUNNER_TIMEOUT_SECONDS", "300"))  # full run; 0 = no limit
+# Keep cloud defaults snappy, but give local LLMs more headroom for long tool-rich runs.
+_request_timeout_default = "240" if LOCAL_LLM else "120"
+_runner_timeout_default = "900" if LOCAL_LLM else "300"
+REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", _request_timeout_default))  # per LLM completion
+RUNNER_TIMEOUT_SECONDS = int(os.getenv("RUNNER_TIMEOUT_SECONDS", _runner_timeout_default))  # full run; 0 = no limit
+
+# Session history: max events loaded from a previous session (prevents context overflow).
+# ~50 events ≈ 5-10 full analysis turns. Set to 0 to load all events (no cap).
+SESSION_HISTORY_EVENTS = int(os.getenv("SESSION_HISTORY_EVENTS", "50"))
 
 # ADK specific required variables
 ROOT_AGENT = _env_strip("ROOT_AGENT", "SET_ROOT_AGENT_NAME_HERE")

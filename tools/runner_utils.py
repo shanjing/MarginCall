@@ -1,14 +1,14 @@
 import asyncio
-import uuid
 import os
 from pathlib import Path
 from dotenv import load_dotenv
 
 from google.adk.runners import Runner
 from google.adk.sessions import DatabaseSessionService
+from google.adk.sessions.base_session_service import GetSessionConfig
 from google.genai import types
 
-from .config import AI_MODEL_NAME, LOCAL_LLM, RUNNER_TIMEOUT_SECONDS
+from .config import AI_MODEL_NAME, LOCAL_LLM, RUNNER_TIMEOUT_SECONDS, SESSION_HISTORY_EVENTS
 from .logging_utils import (
     log_agent_failure,
     log_event,
@@ -70,21 +70,38 @@ async def execute_agent_stream(app, input_text, initial_state=None, debug=False)
     init_run_tool_registry()
 
     runner = Runner(app=app, session_service=session_service)
-    session_id = str(uuid.uuid4())
     user_id = _env_id("USER_ID", "default_user")
+    # Stable session_id: one persistent conversation per user per app.
+    # Reusing the same ID lets ADK carry conversation history (events) across CLI runs,
+    # enabling follow-up questions and cross-run context without re-running the pipeline.
+    session_id = f"{app.name}--{user_id}"
 
-    await session_service.create_session(
+    # Get-or-create: reuse the existing session if it exists, otherwise start fresh.
+    _history_config = GetSessionConfig(num_recent_events=SESSION_HISTORY_EVENTS) if SESSION_HISTORY_EVENTS > 0 else None
+    curr_session = await session_service.get_session(
         app_name=app.name,
         user_id=user_id,
         session_id=session_id,
-        state=initial_state or {},
+        config=_history_config,
     )
+    if curr_session is None:
+        await session_service.create_session(
+            app_name=app.name,
+            user_id=user_id,
+            session_id=session_id,
+            state=initial_state or {},
+        )
+        logger.info("Session created: session_id=%s", session_id)
+    else:
+        logger.info("Session resumed: session_id=%s events=%d", session_id, len(curr_session.events))
+
     if debug:
         # 1. Inspect STARTING state
         curr_session = await session_service.get_session(
             app_name=app.name,
             user_id=user_id,
             session_id=session_id,
+            config=_history_config,
         )
         log_session_state(curr_session.state, label="PRE-FLIGHT STATE", session_id=session_id)
 

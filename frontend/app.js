@@ -4,14 +4,54 @@
 const APP_NAME  = "stock_analyst";
 const USER_ID   = "Trader";
 
+const STORAGE_SESSION_KEY = "margincall-session-id";
+const STORAGE_MESSAGES_KEY = "margincall-messages";
+
 let sessionId   = null;
 let isStreaming  = false;
+
+/** In-memory list of messages for persistence (survives refresh). */
+let persistedMessages = [];
 
 const messagesEl  = document.getElementById("messages");
 const chatForm    = document.getElementById("chat-form");
 const chatInput   = document.getElementById("chat-input");
 const sendBtn     = document.getElementById("send-btn");
 const logContent  = document.getElementById("log-content");
+
+/* ── Persist state (sticky across refresh) ─────────────────────── */
+
+function loadSessionId() {
+  try {
+    return sessionStorage.getItem(STORAGE_SESSION_KEY);
+  } catch (e) { return null; }
+}
+
+function saveSessionId(id) {
+  if (!id) return;
+  try {
+    sessionStorage.setItem(STORAGE_SESSION_KEY, id);
+  } catch (e) { /* ignore */ }
+}
+
+function loadMessages() {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_MESSAGES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) { return []; }
+}
+
+function saveMessages() {
+  try {
+    sessionStorage.setItem(STORAGE_MESSAGES_KEY, JSON.stringify(persistedMessages));
+  } catch (e) { /* ignore */ }
+}
+
+/** Append one message to persisted list and write to storage. */
+function persistMessage(msg) {
+  persistedMessages.push(msg);
+  saveMessages();
+}
 
 /* ── Helpers ─────────────────────────────────────────────────── */
 
@@ -128,6 +168,7 @@ async function createSession() {
   if (!res.ok) throw new Error(`Failed to create session: ${res.status}`);
   const session = await res.json();
   sessionId = session.id;
+  saveSessionId(sessionId);
   return sessionId;
 }
 
@@ -140,6 +181,65 @@ async function getSessionState() {
   return session.state || {};
 }
 
+/** Return true if the stored session id is still valid (server has it). */
+async function validateSession(id) {
+  if (!id) return false;
+  const res = await fetch(
+    `/apps/${APP_NAME}/users/${USER_ID}/sessions/${id}`
+  );
+  return res.ok;
+}
+
+/** Attach chart images to a report (mutates report). Fetches from /api/charts. */
+async function attachChartsToReport(report) {
+  const ticker = report.ticker;
+  if (!ticker) return;
+  try {
+    const chartsRes = await fetch(`/api/charts?ticker=${encodeURIComponent(ticker)}`);
+    if (!chartsRes.ok) return;
+    const data = await chartsRes.json();
+    const charts = data?.charts || {};
+    const order = ["1y", "3mo"];
+    const chartImages = {};
+    for (const key of order) {
+      const entry = charts[key];
+      if (entry && entry.image_base64) {
+        chartImages[key] = {
+          label: entry.label || (key === "1y" ? "1-Year Daily" : "90-Day Daily"),
+          src: "data:image/png;base64," + entry.image_base64,
+        };
+      }
+    }
+    if (Object.keys(chartImages).length) report.chart_images = chartImages;
+  } catch (_) { /* ignore */ }
+}
+
+/**
+ * Restore the UI from persisted messages (after refresh).
+ * Clears #messages and re-renders each stored message; for agent+report fetches charts then appends card.
+ */
+async function restoreMessagesToDOM(list) {
+  if (!list || list.length === 0) return;
+  messagesEl.innerHTML = "";
+  for (const m of list) {
+    if (m.role === "user") {
+      addMessage("user", m.text || "");
+    } else if (m.role === "system") {
+      addSystemMessage(m.text || "");
+    } else if (m.role === "agent") {
+      const text = m.text || "";
+      addMessage("agent", text);
+      if (m.report && typeof renderStockReport === "function") {
+        const report = { ...m.report };
+        await attachChartsToReport(report);
+        const card = renderStockReport(report);
+        messagesEl.appendChild(card);
+        scrollToBottom();
+      }
+    }
+  }
+}
+
 /* ── SSE streaming ───────────────────────────────────────────── */
 
 async function sendMessage(text) {
@@ -149,6 +249,7 @@ async function sendMessage(text) {
 
   // User bubble
   addMessage("user", text);
+  persistMessage({ role: "user", text });
 
   // Agent bubble (will be filled by streaming); show loading until first content
   const agentContent = addMessage("agent", "");
@@ -159,6 +260,7 @@ async function sendMessage(text) {
   let fullText = "";
   // Track the last known stock_report to detect new ones
   let reportBefore = null;
+  let agentMessagePersisted = false;
   try {
     const stateBefore = await getSessionState();
     reportBefore = stateBefore ? stateBefore.stock_report : null;
@@ -272,8 +374,15 @@ async function sendMessage(text) {
       const card = renderStockReport(report);
       messagesEl.appendChild(card);
       scrollToBottom();
+      const reportForStorage = { ...report };
+      delete reportForStorage.chart_images;
+      persistMessage({ role: "agent", text: "Here's your report below.", report: reportForStorage });
+      agentMessagePersisted = true;
     }
   } catch (_) { /* ignore */ }
+  if (!agentMessagePersisted) {
+    persistMessage({ role: "agent", text: fullText });
+  }
 }
 
 /* ── Event handlers ──────────────────────────────────────────── */
@@ -289,12 +398,26 @@ chatForm.addEventListener("submit", (e) => {
 /* ── Init ────────────────────────────────────────────────────── */
 
 (async function init() {
-  // Start permanent log stream (connects once, auto-reconnects)
   LogStream.connect();
+
   try {
-    await createSession();
-    addSystemMessage("Ask me about any stock, market sentiments, market news, earnings date, etc.");
-    addSystemMessage("This is generated by AI, for entertainment only, not an investment advice. Do your own research.");
+    const storedSessionId = loadSessionId();
+    if (storedSessionId && (await validateSession(storedSessionId))) {
+      sessionId = storedSessionId;
+    } else {
+      await createSession();
+    }
+
+    const saved = loadMessages();
+    if (saved && saved.length > 0) {
+      persistedMessages = saved;
+      await restoreMessagesToDOM(persistedMessages);
+    } else {
+      addSystemMessage("Ask me about any stock, market sentiments, market news, earnings date, etc.");
+      addSystemMessage("This is generated by AI, for entertainment only, not an investment advice. Do your own research.");
+      persistMessage({ role: "system", text: "Ask me about any stock, market sentiments, market news, earnings date, etc." });
+      persistMessage({ role: "system", text: "This is generated by AI, for entertainment only, not an investment advice. Do your own research." });
+    }
     chatInput.focus();
   } catch (err) {
     addSystemMessage("Failed to connect: " + err.message);
