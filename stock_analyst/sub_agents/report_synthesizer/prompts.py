@@ -15,6 +15,17 @@ def _instruction():
     Read from session.state.stock_data and produce ONLY the structured JSON output
     matching the schema. No text before/after. No explanation.
 
+    LANGUAGE POLICY (CRITICAL):
+    - Infer language from the latest user request in session context (current turn only).
+    - If the latest user request is Chinese, or asks for Chinese output, write all narrative string fields in Chinese.
+      This includes title, company_intro, summaries, rationale, conclusion, snippets, and notes.
+    - If the latest user request is not Chinese and does not ask for Chinese, write narrative string fields in English.
+    - Do not carry over language preference from older turns.
+    - Keep machine-required literals exactly as schema expects:
+      rating.recommendation must be one of Bullish/Bearish/Neutral.
+      sentiment.overall_market_sentiment must be one of BULLISH/BEARISH/NEUTRAL/MIXED.
+      options_analysis.iv_vs_hv must be one of OVERPRICED/FAIR/UNDERPRICED/UNKNOWN.
+
     DATA SOURCE: session.state.stock_data (from stock_data_collector output_key)
     SESSION.STATE.STOCK_DATA STRUCTURE:
     {{

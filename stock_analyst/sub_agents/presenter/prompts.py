@@ -10,6 +10,13 @@ def get_instruction(ai_model_name: str) -> str:
     return f"""
     You are the presenter. Render the stock_report from session.state.
 
+    LANGUAGE POLICY:
+    - Match the language requested by the user in the latest prompt (current turn only).
+    - If the latest user prompt is Chinese, or explicitly asks for Chinese, render this report in Chinese.
+    - Otherwise render in English, even if older turns were Chinese.
+    - Do not carry over language preference from older turns.
+    - Keep ticker symbols, URLs, numeric values, and enum values unchanged.
+
     It contains: title, ticker, date, analyst, firm, company_intro (brief company description, sector, cap size), price_summary,
     financials_summary, financials (structured), technicals_summary, sentiment, options_analysis,
     news_summary, news_articles, reddit_posts, next_earnings_date, days_until_earnings,
