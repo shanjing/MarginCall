@@ -11,7 +11,7 @@ structured JSON output. See misc/adk/use_tools_with_schema.md for design rationa
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -58,6 +58,20 @@ class StockRating(BaseModel):
     )
     rationale: str = Field(..., description="Brief explanation for the rating.")
 
+    @field_validator("recommendation", mode="before")
+    @classmethod
+    def normalize_recommendation(cls, v):
+        """Accept common model variants like 'NEUTRAL' / 'bullish'."""
+        if isinstance(v, str):
+            s = v.strip().lower()
+            if s == "bullish":
+                return "Bullish"
+            if s == "bearish":
+                return "Bearish"
+            if s == "neutral":
+                return "Neutral"
+        return v
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Sentiment analysis (4 indicators)
@@ -66,34 +80,73 @@ class SentimentAnalysis(BaseModel):
     """Sentiment analysis section of the report (4 indicators)."""
 
     cnn_fear_greed_score: int = Field(
-        ..., ge=0, le=100, description="CNN Fear & Greed score (0-100)."
+        0, ge=0, le=100, description="CNN Fear & Greed score (0-100)."
     )
     cnn_fear_greed_rating: str = Field(
-        ...,
+        "UNAVAILABLE",
         description="CNN rating: Extreme Fear, Fear, Neutral, Greed, Extreme Greed.",
     )
-    vix_value: float = Field(..., description="VIX value.")
+    vix_value: float = Field(0.0, description="VIX value.")
     vix_signal: str = Field(
-        ..., description="VIX signal: GREED, NEUTRAL, FEAR, HIGH_FEAR, EXTREME_FEAR."
+        "UNAVAILABLE", description="VIX signal: GREED, NEUTRAL, FEAR, HIGH_FEAR, EXTREME_FEAR."
     )
     stocktwits_ratio: float = Field(
-        ..., ge=0, le=1, description="StockTwits bullish ratio (0-1)."
+        0.0, ge=0, le=1, description="StockTwits bullish ratio (0-1)."
     )
     stocktwits_signal: str = Field(
-        ..., description="StockTwits signal: STRONG_BULLISH to STRONG_BEARISH."
+        "UNAVAILABLE", description="StockTwits signal: STRONG_BULLISH to STRONG_BEARISH."
     )
     pcr_volume: float = Field(
-        ..., ge=0, description="Put/Call volume ratio (< 0.7 bullish, > 1.3 bearish)."
+        0.0, ge=0, description="Put/Call volume ratio (< 0.7 bullish, > 1.3 bearish)."
     )
     pcr_signal: str = Field(
-        ..., description="PCR signal: BULLISH, NEUTRAL, CAUTIOUS, BEARISH."
+        "UNAVAILABLE", description="PCR signal: BULLISH, NEUTRAL, CAUTIOUS, BEARISH."
     )
     overall_market_sentiment: Literal["BULLISH", "BEARISH", "NEUTRAL", "MIXED"] = Field(
-        ..., description="Combined market sentiment from all 4 indicators."
+        "NEUTRAL", description="Combined market sentiment from all 4 indicators."
     )
     sentiment_summary: str = Field(
-        ..., description="1-2 sentence summary of market sentiment."
+        "Market sentiment data partially/fully unavailable.",
+        description="1-2 sentence summary of market sentiment.",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def flatten_nested_sentiment(cls, data):
+        """
+        Accept both flattened schema keys and nested model outputs, e.g.:
+        {
+          "cnn_fear_greed": {"score": 40, "rating": "Fear"},
+          "vix": {"value": 22, "signal": "FEAR"},
+          "stocktwits": {"sentiment_ratio": 0.51, "signal": "NEUTRAL"},
+          "put_call_ratio": {"volume": 0.86, "signal": "NEUTRAL"}
+        }
+        """
+        if not isinstance(data, dict):
+            return data
+
+        out = dict(data)
+        cnn = out.get("cnn_fear_greed")
+        if isinstance(cnn, dict):
+            out.setdefault("cnn_fear_greed_score", cnn.get("score", 0))
+            out.setdefault("cnn_fear_greed_rating", cnn.get("rating", "UNAVAILABLE"))
+
+        vix = out.get("vix")
+        if isinstance(vix, dict):
+            out.setdefault("vix_value", vix.get("value", 0.0))
+            out.setdefault("vix_signal", vix.get("signal", "UNAVAILABLE"))
+
+        st = out.get("stocktwits")
+        if isinstance(st, dict):
+            out.setdefault("stocktwits_ratio", st.get("sentiment_ratio", st.get("ratio", 0.0)))
+            out.setdefault("stocktwits_signal", st.get("signal", "UNAVAILABLE"))
+
+        pcr = out.get("put_call_ratio")
+        if isinstance(pcr, dict):
+            out.setdefault("pcr_volume", pcr.get("volume", pcr.get("value", 0.0)))
+            out.setdefault("pcr_signal", pcr.get("signal", "UNAVAILABLE"))
+
+        return out
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -139,35 +192,36 @@ class OptionsAnalysis(BaseModel):
     """Options analytics section of the report (short-term volatility)."""
 
     pcr_open_interest: float = Field(
-        ..., ge=0, description="Put/Call open interest ratio."
+        0.0, ge=0, description="Put/Call open interest ratio."
     )
-    pcr_volume: float = Field(..., ge=0, description="Put/Call volume ratio.")
+    pcr_volume: float = Field(0.0, ge=0, description="Put/Call volume ratio.")
     pcr_signal: str = Field(
-        ..., description="PCR signal: BULLISH, NEUTRAL, CAUTIOUS, BEARISH."
+        "UNAVAILABLE", description="PCR signal: BULLISH, NEUTRAL, CAUTIOUS, BEARISH."
     )
-    max_pain_strike: float = Field(..., description="Max pain strike price.")
+    max_pain_strike: float = Field(0.0, description="Max pain strike price.")
     max_pain_distance_pct: float = Field(
-        ..., description="Distance from current price to max pain (%)."
+        0.0, description="Distance from current price to max pain (%)."
     )
     unusual_activity_count: int = Field(
-        ..., ge=0, description="Number of contracts with unusual volume/OI."
+        0, ge=0, description="Number of contracts with unusual volume/OI."
     )
     unusual_activity_summary: str = Field(
-        ..., description="Summary of unusual options activity."
+        "Options data unavailable.", description="Summary of unusual options activity."
     )
     iv_mean: float = Field(
-        ..., description="Volume-weighted average implied volatility (%)."
+        0.0, description="Volume-weighted average implied volatility (%)."
     )
-    hv30: float = Field(..., description="30-day historical volatility (%).")
+    hv30: float = Field(0.0, description="30-day historical volatility (%).")
     iv_rank: int = Field(
-        ..., ge=0, le=100, description="IV Rank (0-100), approx based on HV range."
+        0, ge=0, le=100, description="IV Rank (0-100), approx based on HV range."
     )
     iv_vs_hv: Literal["OVERPRICED", "FAIR", "UNDERPRICED", "UNKNOWN"] = Field(
-        ...,
+        "UNKNOWN",
         description="Whether options are overpriced, fair, or underpriced vs historical vol.",
     )
     options_summary: str = Field(
-        ..., description="2-3 sentence summary of options landscape."
+        "Options analytics unavailable for this ticker.",
+        description="2-3 sentence summary of options landscape.",
     )
 
 
@@ -204,10 +258,11 @@ class StockReport(BaseModel):
         ..., description="Summary of technical indicators and signals."
     )
     sentiment: SentimentAnalysis = Field(
-        ..., description="Market sentiment analysis from 4 indicators."
+        default_factory=SentimentAnalysis,
+        description="Market sentiment analysis from 4 indicators."
     )
     options_analysis: OptionsAnalysis = Field(
-        ...,
+        default_factory=OptionsAnalysis,
         description="Options analytics: put/call ratio, max pain, IV, unusual activity.",
     )
     news_summary: str = Field(
@@ -238,7 +293,8 @@ class StockReport(BaseModel):
     # Final verdict
     rating: StockRating = Field(..., description="The final rating recommendation.")
     conclusion: str = Field(
-        ..., description="Final conclusion and investment thesis (2-3 sentences)."
+        "Conclusion unavailable. This analysis is for entertainment only, not investment advice.",
+        description="Final conclusion and investment thesis (2-3 sentences).",
     )
 
     # Movie quote (one per report, from Margin Call / Wolf of Wall Street / The Big Short / House of Cards)
@@ -256,3 +312,17 @@ class StockReport(BaseModel):
         default=None,
         description="If reddit.truncation_applied is true or news/source content contains 'value exceeds size limit' or 'response truncated', set to the standard truncation disclaimer; otherwise null.",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def fill_common_aliases(cls, data):
+        """Backfill frequent alternate keys emitted by different models."""
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        if not out.get("conclusion"):
+            out["conclusion"] = out.get("investment_thesis") or out.get(
+                "final_thoughts",
+                "Conclusion unavailable. This analysis is for entertainment only, not investment advice.",
+            )
+        return out

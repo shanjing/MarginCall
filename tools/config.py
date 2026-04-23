@@ -23,8 +23,21 @@ def _env_strip(key: str, default: str = "") -> str:
 # Instead, change the CLOUD_AI_MODEL or LOCAL_AI_MODEL in the .env file
 CLOUD_MODEL = _env_strip("CLOUD_AI_MODEL")
 LOCAL_MODEL = _env_strip("LOCAL_AI_MODEL") or "qwen3:32b"
+_IS_LOCAL_MODE = not bool(CLOUD_MODEL)
 
 LOCAL_LLM = False
+
+# Timeouts (seconds). Not too sensitive: LLM calls can be slow for large context.
+# Keep cloud defaults snappy, but give local LLMs more headroom for long tool-rich runs.
+_request_timeout_default = "240" if _IS_LOCAL_MODE else "120"
+_runner_timeout_default = "900" if _IS_LOCAL_MODE else "300"
+REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", _request_timeout_default))  # per LLM completion
+RUNNER_TIMEOUT_SECONDS = int(os.getenv("RUNNER_TIMEOUT_SECONDS", _runner_timeout_default))  # full run; 0 = no limit
+
+# LiteLLM controls (applies in local mode). Keeps long generations from stalling for 10 minutes.
+_litellm_max_tokens_default = "1400" if _IS_LOCAL_MODE else "1800"
+LITELLM_MAX_TOKENS = int(os.getenv("LITELLM_MAX_TOKENS", _litellm_max_tokens_default))
+LITELLM_NUM_RETRIES = int(os.getenv("LITELLM_NUM_RETRIES", "1"))
 
 # AL_MODEL_NAME is a string/label for the logger to identify the model
 # AI_MODEL: model object/wrapper for the agent (Gemini instance or LiteLlm)
@@ -34,8 +47,14 @@ if CLOUD_MODEL:
     AI_MODEL_NAME = CLOUD_MODEL
 else:
     # We are in Local Mode (ollama)
-    # Instantiate the wrapper for the Agent, but keep the name for the Logger
-    AI_MODEL = LiteLlm(model=LOCAL_MODEL)
+    # Instantiate the wrapper for the Agent, but keep the name for the Logger.
+    # Pass explicit timeout/token controls so local models don't hang for 600s default socket timeout.
+    AI_MODEL = LiteLlm(
+        model=LOCAL_MODEL,
+        timeout=REQUEST_TIMEOUT_SECONDS,
+        max_tokens=LITELLM_MAX_TOKENS,
+        num_retries=LITELLM_NUM_RETRIES,
+    )
     AI_MODEL_NAME = f"local:{LOCAL_MODEL}"
     LOCAL_LLM = True
 
@@ -47,13 +66,6 @@ INCLUDE_THOUGHTS = os.getenv("INCLUDE_THOUGHTS", "false").lower() == "true"
 CACHE_BACKEND = os.getenv("CACHE_BACKEND", "sqlite")
 # Set to "true" to disable caching entirely (always fetch fresh data)
 CACHE_DISABLED = os.getenv("CACHE_DISABLED", "false").lower() == "true"
-
-# Timeouts (seconds). Not too sensitive: LLM calls can be slow for large context.
-# Keep cloud defaults snappy, but give local LLMs more headroom for long tool-rich runs.
-_request_timeout_default = "240" if LOCAL_LLM else "120"
-_runner_timeout_default = "900" if LOCAL_LLM else "300"
-REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", _request_timeout_default))  # per LLM completion
-RUNNER_TIMEOUT_SECONDS = int(os.getenv("RUNNER_TIMEOUT_SECONDS", _runner_timeout_default))  # full run; 0 = no limit
 
 # Session history: max events loaded from a previous session (prevents context overflow).
 # ~50 events ≈ 5-10 full analysis turns. Set to 0 to load all events (no cap).

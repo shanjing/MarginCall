@@ -95,8 +95,68 @@ function isInternalRoutingText(text) {
   }
   if (hits >= 2) return true;
   // Additional safeguard for planner leakage variants
-  if (t.includes("stock_analysis_pipeline") && (t.includes("case ") || t.includes("i need to call"))) return true;
+  if (t.includes("stock_analysis_pipeline") && (t.includes("case ") || t.includes("rule ") || t.includes("i need to call"))) return true;
+  if (t.includes("ticker is") && t.includes("request argument")) return true;
   return false;
+}
+
+function extractTickerCandidate(inputText) {
+  if (!inputText) return null;
+  const uppers = (inputText.toUpperCase().match(/\b[A-Z]{1,5}\b/g) || [])
+    .filter((s) => !["I", "A", "AN", "THE", "AND", "OR", "FOR", "WITH", "TO", "IN", "ON", "AT", "NOW", "LIVE", "REAL", "TIME"].includes(s));
+  return uppers.length ? uppers[uppers.length - 1] : null;
+}
+
+function extractTextFromEvent(event) {
+  if (!event) return "";
+  let text = "";
+  const parts = (event.content && event.content.parts) ? event.content.parts : [];
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i].text) text += parts[i].text;
+  }
+  if (!parts.length && event.text) text += event.text;
+  return text;
+}
+
+async function readRunResponseText(res, onUpdate) {
+  let text = "";
+  const contentType = (res.headers.get("content-type") || "").toLowerCase();
+
+  if (contentType.includes("application/json")) {
+    const payload = await res.json();
+    const events = Array.isArray(payload) ? payload : [payload];
+    for (const event of events) {
+      text += extractTextFromEvent(event);
+      if (text && typeof onUpdate === "function") onUpdate(text);
+    }
+    return text;
+  }
+
+  // Default path: consume SSE/data lines.
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const json = line.slice(6).trim();
+      if (!json) continue;
+
+      let event;
+      try { event = JSON.parse(json); } catch (_) { continue; }
+      text += extractTextFromEvent(event);
+      if (text && typeof onUpdate === "function") onUpdate(text);
+    }
+  }
+
+  return text;
 }
 
 /** Append a message bubble and return the content element (for streaming). */
@@ -322,45 +382,12 @@ async function sendMessage(text) {
       return;
     }
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      // Keep last potentially incomplete line in buffer
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const json = line.slice(6).trim();
-        if (!json) continue;
-
-        let event;
-        try { event = JSON.parse(json); } catch (_) { continue; }
-
-        // Accumulate text from any event shape ADK may send
-        var parts = (event.content && event.content.parts) ? event.content.parts : [];
-        for (var pi = 0; pi < parts.length; pi++) {
-          if (parts[pi].text) {
-            fullText += parts[pi].text;
-          }
-        }
-        // Also check for text directly on event (some ADK versions)
-        if (!parts.length && event.text) {
-          fullText += event.text;
-        }
-        // Render progressively so simple (non-report) answers show immediately
-        if (fullText && !isInternalRoutingText(fullText)) {
-          agentContent.innerHTML = DOMPurify.sanitize(marked.parse(fullText));
-          scrollToBottom();
-        }
+    fullText = await readRunResponseText(res, (candidateText) => {
+      if (candidateText && !isInternalRoutingText(candidateText)) {
+        agentContent.innerHTML = DOMPurify.sanitize(marked.parse(candidateText));
+        scrollToBottom();
       }
-    }
+    });
   } catch (err) {
     addSystemMessage("Connection error: " + err.message);
   } finally {
@@ -415,6 +442,82 @@ async function sendMessage(text) {
       agentMessagePersisted = true;
     }
   } catch (_) { /* ignore */ }
+  if (!agentMessagePersisted && isInternalRoutingText(fullText)) {
+    const ticker = extractTickerCandidate(text);
+    if (ticker) {
+      // One deterministic retry prompt to recover from planner-text leakage.
+      agentContent.innerHTML =
+        '<span class="message-loading"><span class="hourglass"></span> Retrying with direct pipeline instruction…</span>';
+      scrollToBottom();
+
+      fullText = "";
+      try {
+        const retryRes = await fetch("/run_sse", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            app_name: APP_NAME,
+            user_id: USER_ID,
+            session_id: sessionId,
+            new_message: {
+              role: "user",
+              parts: [{
+                text: `Run stock_analysis_pipeline with request="${ticker}" now. Do not output routing/planning steps. Return only the final user-facing answer.`,
+              }],
+            },
+            streaming: false,
+          }),
+        });
+
+        if (retryRes.ok) {
+          fullText = await readRunResponseText(retryRes, (candidateText) => {
+            if (candidateText && !isInternalRoutingText(candidateText)) {
+              agentContent.innerHTML = DOMPurify.sanitize(marked.parse(candidateText));
+              scrollToBottom();
+            }
+          });
+        }
+      } catch (_) { /* ignore retry errors */ }
+
+      // Re-check whether the retry produced a report in session state
+      try {
+        const state = await getSessionState();
+        const report = state ? state.stock_report : null;
+        if (report && JSON.stringify(report) !== JSON.stringify(reportBefore)) {
+          let chartImages = {};
+          if (report.ticker) {
+            try {
+              const chartsRes = await fetch(`/api/charts?ticker=${encodeURIComponent(report.ticker)}`);
+              if (chartsRes.ok) {
+                const data = await chartsRes.json();
+                const charts = data?.charts || {};
+                const order = ["1y", "3mo"];
+                for (const key of order) {
+                  const entry = charts[key];
+                  if (entry && entry.image_base64) {
+                    chartImages[key] = {
+                      label: entry.label || (key === "1y" ? "1-Year Daily" : "90-Day Daily"),
+                      src: "data:image/png;base64," + entry.image_base64,
+                    };
+                  }
+                }
+              }
+            } catch (_) { /* ignore */ }
+          }
+          report.chart_images = Object.keys(chartImages).length ? chartImages : undefined;
+          agentContent.innerHTML = DOMPurify.sanitize(marked.parse("Here’s your report below."));
+          const card = renderStockReport(report);
+          messagesEl.appendChild(card);
+          scrollToBottom();
+          const reportForStorage = { ...report };
+          delete reportForStorage.chart_images;
+          persistMessage({ role: "agent", text: "Here's your report below.", report: reportForStorage });
+          agentMessagePersisted = true;
+        }
+      } catch (_) { /* ignore */ }
+    }
+  }
+
   if (!agentMessagePersisted) {
     if (isInternalRoutingText(fullText)) {
       addSystemMessage("The model returned internal routing text instead of a final answer. Please retry, or switch to a stronger tool-calling model.");
